@@ -95,7 +95,7 @@ if st.button("🔍 Analyser la situation"):
 Vérifie la conformité avec l'arrêté du 11 avril 2017.
 Si volume > 50 000 m³, cela peut activer la rubrique 1510.
 Pense à mettre à jour le Porter-à-Connaissance ICPE si nécessaire."""
-            st.markdown(f"### ✅ Analyse simulée :
+            st.markdown("### ✅ Analyse simulée :
 {result_text}")
         elif MODE == "API OpenAI (GPT)":
             try:
