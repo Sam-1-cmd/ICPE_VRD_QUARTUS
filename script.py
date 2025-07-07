@@ -115,6 +115,60 @@ if st.button("🔍 Analyser la situation"):
                 st.markdown(response.choices[0].message.content)
             except Exception as e:
                 st.error(f"❌ Erreur lors de l'appel API : {e}")
+from io import BytesIO
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from datetime import datetime
+
+def generate_pdf(user_input, result_text):
+    buffer = BytesIO()
+    c = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
+
+    # En-tête
+    c.setFont("Helvetica-Bold", 16)
+    c.drawString(50, height - 50, "Fiche d'analyse ICPE / VRD")
+    c.setFont("Helvetica", 10)
+    c.drawString(50, height - 70, f"Date : {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+
+    # Saisie utilisateur
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(50, height - 110, "✍️ Modification décrite :")
+    text = c.beginText(50, height - 130)
+    text.setFont("Helvetica", 10)
+    for line in user_input.split("\n"):
+        text.textLine(line)
+    c.drawText(text)
+
+    # Résultat
+    y_offset = text.getY() - 20
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(50, y_offset, "✅ Analyse réglementaire :")
+    result_lines = result_text.split("\n")
+    result_text_obj = c.beginText(50, y_offset - 20)
+    result_text_obj.setFont("Helvetica", 10)
+    for line in result_lines:
+        result_text_obj.textLine(line)
+    c.drawText(result_text_obj)
+
+    c.showPage()
+    c.save()
+    buffer.seek(0)
+    return buffer
+if user_input and (MODE == "Démo hors ligne" or (MODE == "API OpenAI (GPT)" and 'response' in locals())):
+    result_text = response.choices[0].message.content if MODE == "API OpenAI (GPT)" else """
+✅ La modification décrite concerne potentiellement un ouvrage hydraulique situé en zone ICPE.
+Vérifie la conformité avec l'arrêté du 11 avril 2017.
+Si volume > 50 000 m³, cela peut activer la rubrique 1510.
+Pense à mettre à jour le Porter-à-Connaissance ICPE si nécessaire.
+"""
+    pdf_file = generate_pdf(user_input, result_text)
+    st.download_button(
+        label="📥 Télécharger la fiche d'analyse PDF",
+        data=pdf_file,
+        file_name="fiche_analyse_ICPE_VRD.pdf",
+        mime="application/pdf"
+    )
 
 # === PIED DE PAGE ===
 st.markdown("---")
