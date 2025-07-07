@@ -11,6 +11,7 @@ st.markdown(
     <style>
     .stApp {
         background: linear-gradient(to right, #f7f8fc, #e0e6f7);
+        font-family: 'Arial', sans-serif;
     }
     textarea {
         background-color: #ffffffcc !important;
@@ -35,11 +36,11 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# === SÉLECTION DU MODE ===
+# === BARRE LATÉRALE ===
+st.sidebar.title("🧭 Navigation")
 MODE = st.sidebar.radio("🧠 Mode d'analyse :", ["Démo hors ligne", "API OpenAI (GPT)"])
 
-# === TÉLÉVERSEMENT PDF ===
-st.sidebar.markdown("📂 Téléverse un document réglementaire (PDF)")
+st.sidebar.markdown("📂 **Téléverse un document réglementaire**")
 uploaded_file = st.sidebar.file_uploader("Fichier PDF", type=["pdf"])
 
 if uploaded_file is not None:
@@ -57,22 +58,29 @@ if uploaded_file is not None:
 # === EN-TÊTE AVEC LOGO ===
 col1, col2 = st.columns([1, 5])
 with col1:
-    st.image("https://www.mucem.org/sites/default/files/2022-08/logo-Morgane.gif", width=100)
+    st.image("https://www.mucem.org/sites/default/files/2022-08/logo-Morgane.gif", width=90)
 with col2:
-    st.markdown("## 🛠️ Outil d’analyse ICPE / VRD")
-    st.markdown("Analyse réglementaire des modifications de travaux en zone ICPE.")
+    st.markdown("## 🛠️ ICPE / VRD Analyzer")
+    st.markdown("**Outil d’analyse réglementaire des projets VRD liés aux ICPE**")
 
 st.markdown("---")
 
+# === MESSAGE D'ACCUEIL ===
+st.info("👋 Bienvenue ! Décrivez une intervention VRD dans la zone ci-dessous pour en évaluer l’impact réglementaire ICPE.")
+
 # === SAISIE DU TEXTE À ANALYSER ===
-st.subheader("✍️ Décrivez la modification de travaux VRD à analyser :")
+st.markdown("### ✍️ Décrivez la modification de travaux VRD à analyser")
+with st.expander("🔍 Besoin d'un exemple ?"):
+    st.markdown("**Exemple :** Déplacement d’un bassin de rétention vers l’ouest, en dehors de la zone inondable, pour libérer l’accès pompier...")
+
 user_input = st.text_area(
     "Saisie de la modification VRD :",
-    placeholder="Exemple : Déplacement d’un bassin de rétention vers l’ouest à cause de contraintes incendie...",
+    placeholder="Décris ici ta modification (ouvrage, zone, raison, impact...)",
     height=200
 )
 
 # === ANALYSE LORS DU CLIC ===
+st.markdown("### 🧠 Lancer l’analyse")
 if st.button("🔍 Analyser la situation"):
     if not user_input:
         st.warning("⚠️ Merci de décrire une intervention avant de lancer l’analyse.")
