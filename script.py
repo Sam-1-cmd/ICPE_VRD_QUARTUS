@@ -1,6 +1,10 @@
 import streamlit as st
 import os
 from PyPDF2 import PdfReader
+from io import BytesIO
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from datetime import datetime
 
 # === CONFIGURATION DE LA PAGE ===
 st.set_page_config(page_title="ICPE / VRD Analyzer", layout="centered", page_icon="🛠️")
@@ -80,23 +84,19 @@ user_input = st.text_area(
 )
 
 # === ANALYSE LORS DU CLIC ===
-st.markdown("### 🧠 Lancer l’analyse")
+result_text = ""
 if st.button("🔍 Analyser la situation"):
     if not user_input:
         st.warning("⚠️ Merci de décrire une intervention avant de lancer l’analyse.")
     else:
         if MODE == "Démo hors ligne":
             st.info("🧪 Mode démonstration local")
-            st.markdown(f"""
-### ✅ Analyse simulée :
-
-- La modification décrite concerne potentiellement un ouvrage hydraulique situé en zone ICPE.
-- Vérifie la conformité avec **l'arrêté du 11 avril 2017** (bassins, rejets, etc.).
-- Si volume > **50 000 m³**, cela peut activer la **rubrique 1510**.
-- Pense à **mettre à jour le Porter-à-Connaissance ICPE** si le changement est significatif.
-
-📘 Référence utile : Guide technique ICPE - Rubrique 2.1.5.0
-""")
+            result_text = """✅ La modification décrite concerne potentiellement un ouvrage hydraulique situé en zone ICPE.
+Vérifie la conformité avec l'arrêté du 11 avril 2017.
+Si volume > 50 000 m³, cela peut activer la rubrique 1510.
+Pense à mettre à jour le Porter-à-Connaissance ICPE si nécessaire."""
+            st.markdown(f"### ✅ Analyse simulée :
+{result_text}")
         elif MODE == "API OpenAI (GPT)":
             try:
                 from dotenv import load_dotenv
@@ -111,27 +111,23 @@ if st.button("🔍 Analyser la situation"):
                         {"role": "user", "content": user_input}
                     ]
                 )
+                result_text = response.choices[0].message.content
                 st.success("✅ Réponse générée par GPT :")
-                st.markdown(response.choices[0].message.content)
+                st.markdown(result_text)
             except Exception as e:
                 st.error(f"❌ Erreur lors de l'appel API : {e}")
-from io import BytesIO
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-from datetime import datetime
 
+# === GÉNÉRATION DE PDF ===
 def generate_pdf(user_input, result_text):
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
 
-    # En-tête
     c.setFont("Helvetica-Bold", 16)
     c.drawString(50, height - 50, "Fiche d'analyse ICPE / VRD")
     c.setFont("Helvetica", 10)
     c.drawString(50, height - 70, f"Date : {datetime.now().strftime('%d/%m/%Y %H:%M')}")
 
-    # Saisie utilisateur
     c.setFont("Helvetica-Bold", 12)
     c.drawString(50, height - 110, "✍️ Modification décrite :")
     text = c.beginText(50, height - 130)
@@ -140,7 +136,6 @@ def generate_pdf(user_input, result_text):
         text.textLine(line)
     c.drawText(text)
 
-    # Résultat
     y_offset = text.getY() - 20
     c.setFont("Helvetica-Bold", 12)
     c.drawString(50, y_offset, "✅ Analyse réglementaire :")
@@ -155,13 +150,8 @@ def generate_pdf(user_input, result_text):
     c.save()
     buffer.seek(0)
     return buffer
-if user_input and (MODE == "Démo hors ligne" or (MODE == "API OpenAI (GPT)" and 'response' in locals())):
-    result_text = response.choices[0].message.content if MODE == "API OpenAI (GPT)" else """
-✅ La modification décrite concerne potentiellement un ouvrage hydraulique situé en zone ICPE.
-Vérifie la conformité avec l'arrêté du 11 avril 2017.
-Si volume > 50 000 m³, cela peut activer la rubrique 1510.
-Pense à mettre à jour le Porter-à-Connaissance ICPE si nécessaire.
-"""
+
+if user_input and result_text:
     pdf_file = generate_pdf(user_input, result_text)
     st.download_button(
         label="📥 Télécharger la fiche d'analyse PDF",
