@@ -58,7 +58,7 @@ with col2:
 st.markdown("---")
 
 # === FORMULAIRE DE SAISIE ===
-st.subheader("✍️ Décrivez la modification de travaux VRD :")
+st.subheader("✍️ Décrivez la modification de travaux VRD à réaliser :")
 user_input = st.text_area(
     label="Exemple : Déplacement d’un bassin de rétention vers l’ouest à cause de contraintes incendie...",
     height=200
