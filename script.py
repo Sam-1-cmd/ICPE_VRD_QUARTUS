@@ -69,11 +69,11 @@ with col2:
 st.markdown("---")
 
 # === MESSAGE D'ACCUEIL ===
-st.info("👋 Bienvenue ! Décrivez une intervention VRD dans la zone ci-dessous pour en évaluer l'impact réglementaire ICPE.")
+st.info("👋 Bienvenue ! Décrivez une intervention VRD dans la zone ci-dessous pour en évaluer l'impact réglementaire ICPE selon l'arrêté ministériel du 11 avril 2017.")
 
 # === SAISIE DU TEXTE À ANALYSER ===
 st.markdown("### ✍️ Décrivez la modification de travaux VRD à analyser")
-with st.expander("🔍 Besoin d'un exemple ?"):
+with st.expander("🔍 Voir un exemple"):
     st.markdown("""
     **Exemple :** 
     Déplacement d'un bassin de rétention vers l'ouest, en dehors de la zone inondable, 
@@ -134,36 +134,53 @@ Pensez à mettre à jour le Porter-à-Connaissance ICPE si nécessaire."""
             except Exception as e:
                 st.error(f"❌ Erreur lors de l'appel API : {str(e)}")
 
-# === GÉNÉRATION DE PDF ===
+# === GÉNÉRATION DE PDF AVEC EN-TÊTE PROFESSIONNEL ===
 def generate_pdf(user_input, result_text):
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
 
-    # En-tête
-    c.setFont("Helvetica-Bold", 16)
-    c.drawString(50, height - 50, "Fiche d'analyse ICPE / VRD")
-    c.setFont("Helvetica", 10)
-    c.drawString(50, height - 70, f"Date : {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+    # Logo Quartus (lien image)
+    logo_url = "https://www.mucem.org/sites/default/files/2022-08/logo-Morgane.gif"
+    try:
+        from PIL import Image
+        import requests
+        from reportlab.lib.utils import ImageReader
+        response = requests.get(logo_url, stream=True)
+        if response.status_code == 200:
+            logo = ImageReader(response.raw)
+            c.drawImage(logo, 50, height - 100, width=60, height=60, mask='auto')
+    except:
+        pass  # ignore logo if error
 
-    # Section description
+    # Titre
+    c.setFont("Helvetica-Bold", 16)
+    c.drawString(120, height - 50, "Fiche d'analyse ICPE / VRD")
+
+    # Date
+    c.setFont("Helvetica", 10)
+    c.drawString(120, height - 70, f"Date : {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+
+    # Référence réglementaire
+    c.setFont("Helvetica-Oblique", 9)
+    c.drawString(50, height - 105, "Référence : Arrêté ministériel du 11 avril 2017 applicable aux ICPE")
+
+    # Modification décrite
     c.setFont("Helvetica-Bold", 12)
-    c.drawString(50, height - 100, "✍️ Modification décrite :")
-    text = c.beginText(50, height - 120)
+    c.drawString(50, height - 140, "✍️ Modification décrite :")
+    text = c.beginText(50, height - 160)
     text.setFont("Helvetica", 10)
     for line in user_input.split("\n"):
         text.textLine(line.strip())
     c.drawText(text)
 
-    # Section analyse
-    y_offset = text.getY() - 30  # Plus d'espace entre les sections
+    # Analyse réglementaire
+    y_offset = text.getY() - 30
     c.setFont("Helvetica-Bold", 12)
     c.drawString(50, y_offset, "✅ Analyse réglementaire :")
-    
+
     result_text_obj = c.beginText(50, y_offset - 20)
     result_text_obj.setFont("Helvetica", 10)
-    
-    # Gestion des lignes trop longues
     max_width = width - 100
     for line in result_text.split("\n"):
         if c.stringWidth(line, "Helvetica", 10) > max_width:
@@ -183,7 +200,6 @@ def generate_pdf(user_input, result_text):
                 result_text_obj.textLine(" ".join(new_line))
         else:
             result_text_obj.textLine(line)
-    
     c.drawText(result_text_obj)
 
     c.showPage()
@@ -191,6 +207,7 @@ def generate_pdf(user_input, result_text):
     buffer.seek(0)
     return buffer
 
+# === BOUTON DE TÉLÉCHARGEMENT ===
 if user_input and result_text:
     pdf_file = generate_pdf(user_input, result_text)
     st.download_button(
@@ -200,6 +217,7 @@ if user_input and result_text:
         mime="application/pdf",
         use_container_width=True
     )
+
 
 # === PIED DE PAGE ===
 st.markdown("---")
