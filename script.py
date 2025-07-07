@@ -2,10 +2,10 @@ import streamlit as st
 import os
 from PyPDF2 import PdfReader
 
-# === CONFIGURATION GÉNÉRALE ===
+# === CONFIGURATION DE LA PAGE ===
 st.set_page_config(page_title="ICPE / VRD Analyzer", layout="centered", page_icon="🛠️")
 
-# === PERSONNALISATION CSS ===
+# === STYLE PERSONNALISÉ ===
 st.markdown(
     """
     <style>
@@ -35,10 +35,26 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# === MODE ANALYSE ===
+# === SÉLECTION DU MODE ===
 MODE = st.sidebar.radio("🧠 Mode d'analyse :", ["Démo hors ligne", "API OpenAI (GPT)"])
 
-# === LOGO + TITRE ===
+# === TÉLÉVERSEMENT PDF ===
+st.sidebar.markdown("📂 Téléverse un document réglementaire (PDF)")
+uploaded_file = st.sidebar.file_uploader("Fichier PDF", type=["pdf"])
+
+if uploaded_file is not None:
+    st.sidebar.success(f"✅ Fichier chargé : {uploaded_file.name}")
+    try:
+        reader = PdfReader(uploaded_file)
+        text = ""
+        for page in reader.pages:
+            text += page.extract_text()
+        with st.expander("🧾 Voir le contenu du PDF importé"):
+            st.write(text[:1000] + "...")
+    except Exception as e:
+        st.sidebar.error(f"Erreur lors de la lecture du PDF : {e}")
+
+# === EN-TÊTE AVEC LOGO ===
 col1, col2 = st.columns([1, 5])
 with col1:
     st.image("https://www.mucem.org/sites/default/files/2022-08/logo-Morgane.gif", width=100)
@@ -48,27 +64,15 @@ with col2:
 
 st.markdown("---")
 
-# === TÉLÉVERSEMENT PDF ===
-st.sidebar.markdown("📂 Téléverse un document réglementaire (PDF)")
-uploaded_file = st.sidebar.file_uploader("Fichier PDF", type=["pdf"])
-
-if uploaded_file is not None:
-    st.sidebar.success(f"✅ Fichier chargé : {uploaded_file.name}")
-    reader = PdfReader(uploaded_file)
-    text = ""
-    for page in reader.pages:
-        text += page.extract_text()
-    with st.expander("🧾 Voir le contenu du PDF importé"):
-        st.write(text[:1000] + "...")
-
-# === SAISIE UTILISATEUR ===
+# === SAISIE DU TEXTE À ANALYSER ===
 st.subheader("✍️ Décrivez la modification de travaux VRD à analyser :")
 user_input = st.text_area(
+    "Saisie de la modification VRD :",
     placeholder="Exemple : Déplacement d’un bassin de rétention vers l’ouest à cause de contraintes incendie...",
     height=200
 )
 
-# === ANALYSE ===
+# === ANALYSE LORS DU CLIC ===
 if st.button("🔍 Analyser la situation"):
     if not user_input:
         st.warning("⚠️ Merci de décrire une intervention avant de lancer l’analyse.")
