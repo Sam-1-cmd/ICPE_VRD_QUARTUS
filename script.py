@@ -1,5 +1,47 @@
 import streamlit as st
 import os
+st.markdown(
+    """
+    <style>
+    /* Fond global */
+    .stApp {
+        background: linear-gradient(to right, #f7f8fc, #e0e6f7);
+    }
+
+    /* Boîte texte */
+    textarea {
+        background-color: #ffffffcc !important;
+        border-radius: 10px !important;
+        padding: 10px !important;
+    }
+
+    /* Bouton d'analyse */
+    .stButton > button {
+        background-color: #3d5afe;
+        color: white;
+        font-weight: bold;
+        border-radius: 8px;
+        padding: 0.5em 1.5em;
+        transition: 0.3s ease;
+    }
+
+    .stButton > button:hover {
+        background-color: #304ffe;
+        transform: scale(1.03);
+    }
+
+    /* Footer centré et discret */
+    footer {
+        visibility: hidden;
+    }
+
+    .reportview-container .main footer {
+        visibility: hidden;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 # === CONFIGURATION ===
 st.set_page_config(page_title="ICPE / VRD Analyzer", layout="centered", page_icon="🛠️")
