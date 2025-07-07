@@ -2,36 +2,43 @@ import streamlit as st
 import os
 
 # === CONFIGURATION ===
+st.set_page_config(page_title="ICPE / VRD Analyzer", layout="centered", page_icon="🛠️")
 MODE = st.sidebar.radio("🧠 Mode d'analyse :", ["Démo hors ligne", "API OpenAI (GPT)"])
-st.set_page_config(page_title="ICPE / VRD Analyzer", layout="centered")
 
-# === EN-TÊTE ===
-st.title("🛠️ Outil d'analyse ICPE / VRD")
-st.markdown("Décrivez une **modification de travaux VRD** pour en analyser les impacts réglementaires ICPE.")
+# === LOGO & TITRE ===
+col1, col2 = st.columns([1, 5])
+with col1:
+    st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Logo_Quartus.svg/512px-Logo_Quartus.svg.png", width=80)
+with col2:
+    st.markdown("## 🛠️ Outil d’analyse ICPE / VRD")
+    st.markdown("Analyse réglementaire des modifications de travaux en zone ICPE.")
 
-# === ZONE DE SAISIE ===
-user_input = st.text_area("✍️ Modification prévue :", height=200, placeholder="Exemple : Déplacement d’un bassin de rétention côté sud à cause de l’aire incendie...")
+st.markdown("---")
 
-# === ANALYSE ===
-if st.button("🔍 Analyser"):
+# === FORMULAIRE DE SAISIE ===
+st.subheader("✍️ Décrivez la modification de travaux VRD :")
+user_input = st.text_area(
+    label="Exemple : Déplacement d’un bassin de rétention vers l’ouest à cause de contraintes incendie...",
+    height=200
+)
+
+# === BOUTON ET ANALYSE ===
+if st.button("🔍 Analyser la situation"):
     if not user_input:
-        st.warning("Merci de renseigner une modification à analyser.")
+        st.warning("⚠️ Merci de décrire une intervention avant de lancer l’analyse.")
     else:
         if MODE == "Démo hors ligne":
-            st.info("🧪 Mode démo local (aucune connexion à GPT)")
-            fake_response = f"""
-**Analyse simulée :**
+            st.info("🧪 Mode démonstration local")
+            st.markdown(f"""
+### ✅ Analyse simulée :
 
-✅ La modification décrite concerne un ouvrage hydraulique en zone ICPE.
+- La modification décrite concerne potentiellement un ouvrage hydraulique situé en zone ICPE.
+- Vérifie la conformité avec **l'arrêté du 11 avril 2017** (bassins, rejets, etc.).
+- Si volume > **50 000 m³**, cela peut activer la **rubrique 1510**.
+- Pense à **mettre à jour le Porter-à-Connaissance ICPE** si le changement est significatif.
 
-- Vérifie la conformité avec l'arrêté du 11 avril 2017.
-- Évalue si une mise à jour du porter-à-connaissance est nécessaire.
-- Impact possible sur la rubrique 1510 si volume > 50 000 m³.
-
-📘 Référence suggérée : Guide technique ICPE, rubrique 2.1.5.0.
-"""
-            st.markdown(fake_response)
-
+📘 Référence utile : Guide technique ICPE - Rubrique 2.1.5.0
+            """)
         elif MODE == "API OpenAI (GPT)":
             try:
                 from dotenv import load_dotenv
@@ -42,7 +49,7 @@ if st.button("🔍 Analyser"):
                 response = client.chat.completions.create(
                     model="gpt-3.5-turbo",
                     messages=[
-                        {"role": "system", "content": "Tu es un assistant expert en réglementation ICPE et VRD."},
+                        {"role": "system", "content": "Tu es un expert réglementaire ICPE et VRD. Sois précis et clair."},
                         {"role": "user", "content": user_input}
                     ]
                 )
@@ -53,5 +60,4 @@ if st.button("🔍 Analyser"):
 
 # === PIED DE PAGE ===
 st.markdown("---")
-st.markdown("📄 Version 1.0 · Projet Quartus · © 2025")
-
+st.caption("🔖 Quartus · Projet ICPE / VRD · Version 1.0 · © 2025")
