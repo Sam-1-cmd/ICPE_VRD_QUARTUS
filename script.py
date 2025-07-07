@@ -50,7 +50,7 @@ MODE = st.sidebar.radio("🧠 Mode d'analyse :", ["Démo hors ligne", "API OpenA
 # === LOGO & TITRE ===
 col1, col2 = st.columns([1, 5])
 with col1:
-    st.image("https://www.mucem.org/sites/default/files/2022-08/logo-Morgane.gif", width=80)
+    st.image("https://www.mucem.org/sites/default/files/2022-08/logo-Morgane.gif", width=100)
 with col2:
     st.markdown("## 🛠️ Outil d’analyse ICPE / VRD")
     st.markdown("Analyse réglementaire des modifications de travaux en zone ICPE.")
