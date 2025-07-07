@@ -56,6 +56,22 @@ with col2:
     st.markdown("Analyse réglementaire des modifications de travaux en zone ICPE.")
 
 st.markdown("---")
+st.sidebar.markdown("📂 Téléverse un document réglementaire (PDF)")
+uploaded_file = st.sidebar.file_uploader("Fichier PDF", type=["pdf"])
+from PyPDF2 import PdfReader
+
+if uploaded_file is not None:
+    st.sidebar.success(f"✅ Fichier chargé : {uploaded_file.name}")
+    
+    # Lecture du PDF
+    reader = PdfReader(uploaded_file)
+    text = ""
+    for page in reader.pages:
+        text += page.extract_text()
+
+    # Zone d'affichage facultative
+    with st.expander("🧾 Voir le contenu du PDF importé"):
+        st.write(text[:1000] + "...")  # Affiche les 1000 premiers caractères
 
 # === FORMULAIRE DE SAISIE ===
 st.subheader("✍️ Décrivez la modification de travaux VRD à réaliser :")
