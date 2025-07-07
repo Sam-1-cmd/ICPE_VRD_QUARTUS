@@ -45,17 +45,16 @@ st.sidebar.title("🧭 Navigation")
 MODE = st.sidebar.radio("🧠 Mode d'analyse :", ["Démo hors ligne", "API OpenAI (GPT)"])
 
 st.sidebar.markdown("📂 **Téléverse un document réglementaire**")
-uploaded_file = st.sidebar.file_uploader("Fichier PDF", type=["pdf"])
+uploaded_file = st.sidebar.file_uploader("Fichier PDF", type=["pdf"], label_visibility="collapsed")
 
+pdf_text = ""
 if uploaded_file is not None:
     st.sidebar.success(f"✅ Fichier chargé : {uploaded_file.name}")
     try:
         reader = PdfReader(uploaded_file)
-        text = ""
-        for page in reader.pages:
-            text += page.extract_text()
+        pdf_text = "\n".join([page.extract_text() or "" for page in reader.pages])
         with st.expander("🧾 Voir le contenu du PDF importé"):
-            st.write(text[:1000] + "...")
+            st.write(pdf_text[:1000] + ("..." if len(pdf_text) > 1000 else ""))
     except Exception as e:
         st.sidebar.error(f"Erreur lors de la lecture du PDF : {e}")
 
@@ -65,57 +64,75 @@ with col1:
     st.image("https://www.mucem.org/sites/default/files/2022-08/logo-Morgane.gif", width=90)
 with col2:
     st.markdown("## 🛠️ ICPE / VRD Analyzer")
-    st.markdown("**Outil d’analyse réglementaire des projets VRD liés aux ICPE**")
+    st.markdown("**Outil d'analyse réglementaire des projets VRD liés aux ICPE**")
 
 st.markdown("---")
 
 # === MESSAGE D'ACCUEIL ===
-st.info("👋 Bienvenue ! Décrivez une intervention VRD dans la zone ci-dessous pour en évaluer l’impact réglementaire ICPE.")
+st.info("👋 Bienvenue ! Décrivez une intervention VRD dans la zone ci-dessous pour en évaluer l'impact réglementaire ICPE.")
 
 # === SAISIE DU TEXTE À ANALYSER ===
 st.markdown("### ✍️ Décrivez la modification de travaux VRD à analyser")
 with st.expander("🔍 Besoin d'un exemple ?"):
-    st.markdown("**Exemple :** Déplacement d’un bassin de rétention vers l’ouest, en dehors de la zone inondable, pour libérer l’accès pompier...")
+    st.markdown("""
+    **Exemple :** 
+    Déplacement d'un bassin de rétention vers l'ouest, en dehors de la zone inondable, 
+    pour libérer l'accès pompier. Le nouveau bassin aura une capacité de 60 000 m³.
+    """)
 
 user_input = st.text_area(
     "Saisie de la modification VRD :",
     placeholder="Décris ici ta modification (ouvrage, zone, raison, impact...)",
-    height=200
+    height=200,
+    label_visibility="visible"
 )
 
 # === ANALYSE LORS DU CLIC ===
 result_text = ""
 if st.button("🔍 Analyser la situation"):
-    if not user_input:
-        st.warning("⚠️ Merci de décrire une intervention avant de lancer l’analyse.")
+    if not user_input.strip():
+        st.warning("⚠️ Merci de décrire une intervention avant de lancer l'analyse.")
     else:
         if MODE == "Démo hors ligne":
             st.info("🧪 Mode démonstration local")
             result_text = """✅ La modification décrite concerne potentiellement un ouvrage hydraulique situé en zone ICPE.
-Vérifie la conformité avec l'arrêté du 11 avril 2017.
+Vérifiez la conformité avec l'arrêté du 11 avril 2017.
 Si volume > 50 000 m³, cela peut activer la rubrique 1510.
-Pense à mettre à jour le Porter-à-Connaissance ICPE si nécessaire."""
-            st.markdown("### ✅ Analyse simulée :
-{result_text}")
+Pensez à mettre à jour le Porter-à-Connaissance ICPE si nécessaire."""
+            st.markdown(f"### ✅ Analyse simulée :\n{result_text}")
+            
         elif MODE == "API OpenAI (GPT)":
             try:
                 from dotenv import load_dotenv
-                import openai
+                from openai import OpenAI
+                
                 load_dotenv()
-                openai.api_key = os.getenv("OPENAI_API_KEY")
-                client = openai.OpenAI()
+                client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+                
+                # On inclut le texte du PDF s'il a été chargé
+                context = f"Description de l'intervention : {user_input}"
+                if pdf_text:
+                    context += f"\n\nDocument de référence :\n{pdf_text[:2000]}"
+                
                 response = client.chat.completions.create(
                     model="gpt-3.5-turbo",
                     messages=[
-                        {"role": "system", "content": "Tu es un expert en réglementation ICPE et VRD. Sois rigoureux et clair."},
-                        {"role": "user", "content": user_input}
-                    ]
+                        {
+                            "role": "system", 
+                            "content": "Tu es un expert en réglementation ICPE et VRD. Analyse la situation avec rigueur."
+                        },
+                        {
+                            "role": "user", 
+                            "content": context
+                        }
+                    ],
+                    temperature=0.3  # Pour des réponses plus factuelles
                 )
                 result_text = response.choices[0].message.content
                 st.success("✅ Réponse générée par GPT :")
                 st.markdown(result_text)
             except Exception as e:
-                st.error(f"❌ Erreur lors de l'appel API : {e}")
+                st.error(f"❌ Erreur lors de l'appel API : {str(e)}")
 
 # === GÉNÉRATION DE PDF ===
 def generate_pdf(user_input, result_text):
@@ -123,27 +140,50 @@ def generate_pdf(user_input, result_text):
     c = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
 
+    # En-tête
     c.setFont("Helvetica-Bold", 16)
     c.drawString(50, height - 50, "Fiche d'analyse ICPE / VRD")
     c.setFont("Helvetica", 10)
     c.drawString(50, height - 70, f"Date : {datetime.now().strftime('%d/%m/%Y %H:%M')}")
 
+    # Section description
     c.setFont("Helvetica-Bold", 12)
-    c.drawString(50, height - 110, "✍️ Modification décrite :")
-    text = c.beginText(50, height - 130)
+    c.drawString(50, height - 100, "✍️ Modification décrite :")
+    text = c.beginText(50, height - 120)
     text.setFont("Helvetica", 10)
     for line in user_input.split("\n"):
-        text.textLine(line)
+        text.textLine(line.strip())
     c.drawText(text)
 
-    y_offset = text.getY() - 20
+    # Section analyse
+    y_offset = text.getY() - 30  # Plus d'espace entre les sections
     c.setFont("Helvetica-Bold", 12)
     c.drawString(50, y_offset, "✅ Analyse réglementaire :")
-    result_lines = result_text.split("\n")
+    
     result_text_obj = c.beginText(50, y_offset - 20)
     result_text_obj.setFont("Helvetica", 10)
-    for line in result_lines:
-        result_text_obj.textLine(line)
+    
+    # Gestion des lignes trop longues
+    max_width = width - 100
+    for line in result_text.split("\n"):
+        if c.stringWidth(line, "Helvetica", 10) > max_width:
+            words = line.split()
+            new_line = []
+            current_length = 0
+            for word in words:
+                word_length = c.stringWidth(word + " ", "Helvetica", 10)
+                if current_length + word_length < max_width:
+                    new_line.append(word)
+                    current_length += word_length
+                else:
+                    result_text_obj.textLine(" ".join(new_line))
+                    new_line = [word]
+                    current_length = word_length
+            if new_line:
+                result_text_obj.textLine(" ".join(new_line))
+        else:
+            result_text_obj.textLine(line)
+    
     c.drawText(result_text_obj)
 
     c.showPage()
@@ -157,7 +197,8 @@ if user_input and result_text:
         label="📥 Télécharger la fiche d'analyse PDF",
         data=pdf_file,
         file_name="fiche_analyse_ICPE_VRD.pdf",
-        mime="application/pdf"
+        mime="application/pdf",
+        use_container_width=True
     )
 
 # === PIED DE PAGE ===
