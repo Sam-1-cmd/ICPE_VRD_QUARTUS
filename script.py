@@ -201,6 +201,14 @@ def generate_pdf(user_input, result_text):
         else:
             result_text_obj.textLine(line)
     c.drawText(result_text_obj)
+# === Pied de page professionnel ===
+    c.setStrokeColorRGB(0.7, 0.7, 0.7)
+    c.setLineWidth(0.5)
+    c.line(50, 40, width - 50, 40)
+
+    c.setFont("Helvetica-Oblique", 8)
+    c.drawString(50, 28, "📄 Fiche générée automatiquement – Projet Quartus Logistique – Analyse ICPE / VRD")
+    c.drawRightString(width - 50, 28, f"Page 1 | {datetime.now().strftime('%d/%m/%Y')}")
 
     c.showPage()
     c.save()
@@ -219,6 +227,12 @@ if user_input and result_text:
     )
 
 
-# === PIED DE PAGE ===
-st.markdown("---")
-st.caption("🔖 Quartus · Projet ICPE / VRD · Version 1.0 · © 2025")
+# === Pied de page ===
+c.setStrokeColorRGB(0.7, 0.7, 0.7)
+c.setLineWidth(0.5)
+c.line(50, 40, width - 50, 40)
+
+c.setFont("Helvetica-Oblique", 8)
+c.drawString(50, 28, "📄 Fiche générée automatiquement – Projet Quartus Logistique – Analyse ICPE / VRD")
+c.drawRightString(width - 50, 28, f"Page 1 | {datetime.now().strftime('%d/%m/%Y')}")
+
