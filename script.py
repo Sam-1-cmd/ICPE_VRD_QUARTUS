@@ -1,21 +1,22 @@
 import streamlit as st
 import os
+from PyPDF2 import PdfReader
+
+# === CONFIGURATION GÉNÉRALE ===
+st.set_page_config(page_title="ICPE / VRD Analyzer", layout="centered", page_icon="🛠️")
+
+# === PERSONNALISATION CSS ===
 st.markdown(
     """
     <style>
-    /* Fond global */
     .stApp {
         background: linear-gradient(to right, #f7f8fc, #e0e6f7);
     }
-
-    /* Boîte texte */
     textarea {
         background-color: #ffffffcc !important;
         border-radius: 10px !important;
         padding: 10px !important;
     }
-
-    /* Bouton d'analyse */
     .stButton > button {
         background-color: #3d5afe;
         color: white;
@@ -24,30 +25,20 @@ st.markdown(
         padding: 0.5em 1.5em;
         transition: 0.3s ease;
     }
-
     .stButton > button:hover {
         background-color: #304ffe;
         transform: scale(1.03);
     }
-
-    /* Footer centré et discret */
-    footer {
-        visibility: hidden;
-    }
-
-    .reportview-container .main footer {
-        visibility: hidden;
-    }
+    footer {visibility: hidden;}
     </style>
     """,
     unsafe_allow_html=True
 )
 
-# === CONFIGURATION ===
-st.set_page_config(page_title="ICPE / VRD Analyzer", layout="centered", page_icon="🛠️")
+# === MODE ANALYSE ===
 MODE = st.sidebar.radio("🧠 Mode d'analyse :", ["Démo hors ligne", "API OpenAI (GPT)"])
 
-# === LOGO & TITRE ===
+# === LOGO + TITRE ===
 col1, col2 = st.columns([1, 5])
 with col1:
     st.image("https://www.mucem.org/sites/default/files/2022-08/logo-Morgane.gif", width=100)
@@ -56,31 +47,28 @@ with col2:
     st.markdown("Analyse réglementaire des modifications de travaux en zone ICPE.")
 
 st.markdown("---")
+
+# === TÉLÉVERSEMENT PDF ===
 st.sidebar.markdown("📂 Téléverse un document réglementaire (PDF)")
 uploaded_file = st.sidebar.file_uploader("Fichier PDF", type=["pdf"])
-from PyPDF2 import PdfReader
 
 if uploaded_file is not None:
     st.sidebar.success(f"✅ Fichier chargé : {uploaded_file.name}")
-    
-    # Lecture du PDF
     reader = PdfReader(uploaded_file)
     text = ""
     for page in reader.pages:
         text += page.extract_text()
-
-    # Zone d'affichage facultative
     with st.expander("🧾 Voir le contenu du PDF importé"):
-        st.write(text[:1000] + "...")  # Affiche les 1000 premiers caractères
+        st.write(text[:1000] + "...")
 
-# === FORMULAIRE DE SAISIE ===
-st.subheader("✍️ Décrivez la modification de travaux VRD à réaliser :")
+# === SAISIE UTILISATEUR ===
+st.subheader("✍️ Décrivez la modification de travaux VRD à analyser :")
 user_input = st.text_area(
-    label="Exemple : Déplacement d’un bassin de rétention vers l’ouest à cause de contraintes incendie...",
+    placeholder="Exemple : Déplacement d’un bassin de rétention vers l’ouest à cause de contraintes incendie...",
     height=200
 )
 
-# === BOUTON ET ANALYSE ===
+# === ANALYSE ===
 if st.button("🔍 Analyser la situation"):
     if not user_input:
         st.warning("⚠️ Merci de décrire une intervention avant de lancer l’analyse.")
@@ -96,7 +84,7 @@ if st.button("🔍 Analyser la situation"):
 - Pense à **mettre à jour le Porter-à-Connaissance ICPE** si le changement est significatif.
 
 📘 Référence utile : Guide technique ICPE - Rubrique 2.1.5.0
-            """)
+""")
         elif MODE == "API OpenAI (GPT)":
             try:
                 from dotenv import load_dotenv
@@ -107,7 +95,7 @@ if st.button("🔍 Analyser la situation"):
                 response = client.chat.completions.create(
                     model="gpt-3.5-turbo",
                     messages=[
-                        {"role": "system", "content": "Tu es un expert réglementaire ICPE et VRD. Sois précis et clair."},
+                        {"role": "system", "content": "Tu es un expert en réglementation ICPE et VRD. Sois rigoureux et clair."},
                         {"role": "user", "content": user_input}
                     ]
                 )
