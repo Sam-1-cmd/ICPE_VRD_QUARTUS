@@ -1,14 +1,20 @@
 import streamlit as st
 import os
-from PyPDF2 import PdfReader
 from io import BytesIO
+from datetime import datetime
+from PyPDF2 import PdfReader
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
-from datetime import datetime
+from reportlab.lib.utils import ImageReader
+import requests
+import tempfile
+
+# LangChain
 from langchain_community.document_loaders import PyPDFLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.vectorstores import FAISS
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.embeddings import HuggingFaceEmbeddings
+from langchain.vectorstores import FAISS
+
 # === CONFIGURATION DE LA PAGE ===
 st.set_page_config(page_title="ICPE / VRD Analyzer", layout="centered", page_icon="🛠️")
 
