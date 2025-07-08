@@ -61,24 +61,36 @@ if uploaded_file is not None:
     except Exception as e:
         st.sidebar.error(f"Erreur lors de la lecture du PDF : {e}")
 
-loader = PyPDFLoader("mon_document.pdf")
-documents = loader.load()
+from langchain.document_loaders import PyPDFLoader
+import tempfile
 
-text_splitter = RecursiveCharacterTextSplitter(
-    chunk_size=1000,
-    chunk_overlap=200
-)
-docs = text_splitter.split_documents(documents)
-embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-vectordb = FAISS.from_documents(docs, embeddings)
+if uploaded_file is not None:
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+        tmp_file.write(uploaded_file.read())
+        tmp_file_path = tmp_file.name
 
-# Sauvegarde sur disque pour réutilisation
-vectordb.save_local("faiss_index")
-# Recharger l’index (optionnel)
-vectordb = FAISS.load_local("faiss_index", embeddings)
+    # 1. Charger
+    loader = PyPDFLoader(tmp_file_path)
+    documents = loader.load()
 
-query = "Quels sont les points clés sur les bassins de rétention ?"
-docs_similaires = vectordb.similarity_search(query, k=3)
+    # 2. Split
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    docs = text_splitter.split_documents(documents)
+
+    # 3. Embedding + FAISS
+    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    vectordb = FAISS.from_documents(docs, embeddings)
+
+    # 4. Recherche
+    query = "Quels sont les points clés sur les bassins de rétention ?"
+    docs_similaires = vectordb.similarity_search(query, k=3)
+
+    # 5. Affichage
+    st.markdown("### 🔍 Résultats de la recherche dans le document :")
+    for i, d in enumerate(docs_similaires):
+        st.markdown(f"**Résultat {i+1} :**")
+        st.write(d.page_content)
+
 
 for i, d in enumerate(docs_similaires):
     st.markdown(f"**Résultat {i+1} :**")
