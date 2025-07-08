@@ -14,14 +14,11 @@ st.markdown(
     """
     <style>
     .stApp {
-        background: url('https://uploads-ssl.webflow.com/60f1b499b7706165688fffa8/6422fdda44491084db9dec8f_MINIATURES%20prevedia%20(80).jpg');
+        background-image: url("https://media.giphy.com/media/l0MYOUI5XfRkUjzL2/giphy.gif");
         background-size: cover;
+        background-attachment: fixed;
         background-position: center;
-    }
-    .main .block-container {
-        background-color: rgba(255,255,255,0.85);
-        padding: 2rem;
-        border-radius: 15px;
+        font-family: 'Arial', sans-serif;
     }
     </style>
     """,
