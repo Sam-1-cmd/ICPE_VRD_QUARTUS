@@ -227,9 +227,9 @@ if user_input and result_text:
     )
 
 
-# === Pied de page ===
-c.setStrokeColorRGB(0.7, 0.7, 0.7)
+# === Pied de page professionnel ===
 c.setLineWidth(0.5)
+c.setStrokeColorRGB(0.7, 0.7, 0.7)
 c.line(50, 40, width - 50, 40)
 
 c.setFont("Helvetica-Oblique", 8)
