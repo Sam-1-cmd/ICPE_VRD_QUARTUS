@@ -61,7 +61,7 @@ if uploaded_file is not None:
 # === EN-TÊTE AVEC LOGO ===
 col1, col2 = st.columns([1, 5])
 with col1:
-    st.image("https://www.construction21.org/france/data/sources/users/20051/20230217094921-5quartuslogoversion1-noire.jpg", width=100)
+    st.image("https://www.construction21.org/france/data/sources/users/20051/20230217094921-5quartuslogoversion1-noire.jpg", width=150)
 with col2:
     st.markdown("## 🛠️ ICPE / VRD Analyzer")
     st.markdown("**Outil d'analyse réglementaire des projets VRD liés aux ICPE**")
