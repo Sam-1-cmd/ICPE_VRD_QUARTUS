@@ -14,7 +14,10 @@ st.markdown(
     """
     <style>
     .stApp {
-        background: linear-gradient(to right, #f7f8fc, #e0e6f7);
+        background-image: url("https://uploads-ssl.webflow.com/60f1b499b7706165688fffa8/6422fdda44491084db9dec8f_MINIATURES%20prevedia%20(80).jpg");
+        background-size: cover;
+        background-attachment: fixed;
+        background-position: center;
         font-family: 'Arial', sans-serif;
     }
     textarea {
@@ -28,17 +31,13 @@ st.markdown(
         font-weight: bold;
         border-radius: 8px;
         padding: 0.5em 1.5em;
-        transition: 0.3s ease;
-    }
-    .stButton > button:hover {
-        background-color: #304ffe;
-        transform: scale(1.03);
     }
     footer {visibility: hidden;}
     </style>
     """,
     unsafe_allow_html=True
 )
+
 
 # === BARRE LATÉRALE ===
 st.sidebar.title("🧭 Navigation")
