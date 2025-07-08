@@ -1,271 +1,46 @@
 import streamlit as st
 import os
-from io import BytesIO
-from datetime import datetime
-from PyPDF2 import PdfReader
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-from reportlab.lib.utils import ImageReader
-import requests
-import tempfile
 
-# LangChain
-from langchain_community.document_loaders import PyPDFLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.embeddings import HuggingFaceEmbeddings
-from langchain.vectorstores import FAISS
+# Choisir le mode ici
+MODE = "offline"  # "api" pour GPT réel, "offline" pour test
 
-# === CONFIGURATION DE LA PAGE ===
-st.set_page_config(page_title="ICPE / VRD Analyzer", layout="centered", page_icon="🛠️")
+st.title("🛠️ Analyse ICPE / VRD")
 
-# === STYLE PERSONNALISÉ ===
-st.markdown(
-    """
-    <style>
-    .stApp {
-        background: linear-gradient(to right, #f7f8fc, #e0e6f7);
-        font-family: 'Arial', sans-serif;
-    }
-    textarea {
-        background-color: #ffffffcc !important;
-        border-radius: 10px !important;
-        padding: 10px !important;
-    }
-    .stButton > button {
-        background-color: #3d5afe;
-        color: white;
-        font-weight: bold;
-        border-radius: 8px;
-        padding: 0.5em 1.5em;
-        transition: 0.3s ease;
-    }
-    .stButton > button:hover {
-        background-color: #304ffe;
-        transform: scale(1.03);
-    }
-    footer {visibility: hidden;}
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+user_input = st.text_area("Décris ta modification VRD :", height=200)
 
-# === BARRE LATÉRALE ===
-st.sidebar.title("🧭 Navigation")
-MODE = st.sidebar.radio("🧠 Mode d'analyse :", ["Démo hors ligne", "API OpenAI (GPT)"])
-
-st.sidebar.markdown("📂 **Téléverse un document réglementaire**")
-uploaded_file = st.sidebar.file_uploader("Fichier PDF", type=["pdf"], label_visibility="collapsed")
-
-pdf_text = ""
-if uploaded_file is not None:
-    st.sidebar.success(f"✅ Fichier chargé : {uploaded_file.name}")
-    try:
-        reader = PdfReader(uploaded_file)
-        pdf_text = "\n".join([page.extract_text() or "" for page in reader.pages])
-        with st.expander("🧾 Voir le contenu du PDF importé"):
-            st.write(pdf_text[:1000] + ("..." if len(pdf_text) > 1000 else ""))
-    except Exception as e:
-        st.sidebar.error(f"Erreur lors de la lecture du PDF : {e}")
-
-docs_similaires = []
-if uploaded_file is not None:
-    st.sidebar.success(f"✅ Fichier chargé : {uploaded_file.name}")
-    try:
-        # Créer un fichier temporaire
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
-            tmp_file.write(uploaded_file.read())
-            tmp_file_path = tmp_file.name
-
-        # Charger et découper le document
-        loader = PyPDFLoader(tmp_file_path)
-        documents = loader.load()
-
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-        docs = text_splitter.split_documents(documents)
-
-        # Embedding et FAISS
-        embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-        vectordb = FAISS.from_documents(docs, embeddings)
-
-        # Recherche
-        query = "Quels sont les points clés sur les bassins de rétention ?"
-        docs_similaires = vectordb.similarity_search(query, k=3)
-
-        # Affichage des résultats
-        st.markdown("### 🔍 Résultats de la recherche dans le document :")
-        for i, d in enumerate(docs_similaires):
-            st.markdown(f"**Résultat {i+1} :**")
-            st.write(d.page_content)
-
-        # Nettoyage du fichier temporaire (bonne pratique)
-        os.unlink(tmp_file_path)
-
-    except Exception as e:
-        st.sidebar.error(f"❌ Erreur lors de la lecture ou indexation du PDF : {e}")
-
-
-for i, d in enumerate(docs_similaires):
-    st.markdown(f"**Résultat {i+1} :**")
-    st.write(d.page_content)
-# === EN-TÊTE AVEC LOGO ===
-col1, col2 = st.columns([1, 5])
-with col1:
-    st.image("https://www.mucem.org/sites/default/files/2022-08/logo-Morgane.gif", width=90)
-with col2:
-    st.markdown("## 🛠️ ICPE / VRD Analyzer")
-    st.markdown("**Outil d'analyse réglementaire des projets VRD liés aux ICPE**")
-
-st.markdown("---")
-
-# === MESSAGE D'ACCUEIL ===
-st.info("👋 Bienvenue ! Décrivez une intervention VRD dans la zone ci-dessous pour en évaluer l'impact réglementaire ICPE selon l'arrêté ministériel du 11 avril 2017.")
-
-# === SAISIE DU TEXTE À ANALYSER ===
-st.markdown("### ✍️ Décrivez la modification de travaux VRD à analyser")
-with st.expander("🔍 Voir un exemple"):
-    st.markdown("""
-    **Exemple :** 
-    Déplacement d'un bassin de rétention vers l'ouest, en dehors de la zone inondable, 
-    pour libérer l'accès pompier. Le nouveau bassin aura une capacité de 60 000 m³.
-    """)
-
-user_input = st.text_area(
-    "Saisie de la modification VRD :",
-    placeholder="Décris ici ta modification (ouvrage, zone, raison, impact...)",
-    height=200,
-    label_visibility="visible"
-)
-
-# === ANALYSE LORS DU CLIC ===
-result_text = ""
-if st.button("🔍 Analyser la situation"):
-    if not user_input.strip():
-        st.warning("⚠️ Merci de décrire une intervention avant de lancer l'analyse.")
+if st.button("Analyser"):
+    if not user_input:
+        st.warning("Merci de remplir le champ.")
     else:
-        if MODE == "Démo hors ligne":
-            st.info("🧪 Mode démonstration local")
-            result_text = """✅ La modification décrite concerne potentiellement un ouvrage hydraulique situé en zone ICPE.
-Vérifiez la conformité avec l'arrêté du 11 avril 2017.
-Si volume > 50 000 m³, cela peut activer la rubrique 1510.
-Pensez à mettre à jour le Porter-à-Connaissance ICPE si nécessaire."""
-            st.markdown(f"### ✅ Analyse simulée :\n{result_text}")
-            
-        elif MODE == "API OpenAI (GPT)":
+        if MODE == "offline":
+            # Simulation de réponse sans GPT
+            response = f"""
+**Analyse simulée :**
+
+Ta modification pourrait impacter les réseaux hydrauliques de la zone ICPE.  
+Vérifie la conformité avec l'arrêté du 11 avril 2017 (bassins de rétention),  
+et assure-toi que les eaux de ruissellement sont bien séparées des eaux incendie.
+"""
+            st.success("🧪 Mode test (local)")
+            st.markdown(response)
+
+        elif MODE == "api":
+            from dotenv import load_dotenv
+            import openai
+
+            load_dotenv()
+            openai.api_key = os.getenv("OPENAI_API_KEY")
+
             try:
-                from dotenv import load_dotenv
-                from openai import OpenAI
-                
-                load_dotenv()
-                client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-                
-                # On inclut le texte du PDF s'il a été chargé
-                context = f"Description de l'intervention : {user_input}"
-                if pdf_text:
-                    context += f"\n\nDocument de référence :\n{pdf_text[:2000]}"
-                
+                client = openai.OpenAI()
                 response = client.chat.completions.create(
                     model="gpt-3.5-turbo",
                     messages=[
-                        {
-                            "role": "system", 
-                            "content": "Tu es un expert en réglementation ICPE et VRD. Analyse la situation avec rigueur."
-                        },
-                        {
-                            "role": "user", 
-                            "content": context
-                        }
-                    ],
-                    temperature=0.3  # Pour des réponses plus factuelles
+                        {"role": "system", "content": "Tu es un assistant réglementaire ICPE/VRD."},
+                        {"role": "user", "content": user_input}
+                    ]
                 )
-                result_text = response.choices[0].message.content
-                st.success("✅ Réponse générée par GPT :")
-                st.markdown(result_text)
+                st.success("Réponse OpenAI (API)")
+                st.markdown(response.choices[0].message.content)
             except Exception as e:
-                st.error(f"❌ Erreur lors de l'appel API : {str(e)}")
-
-def generate_pdf(user_input, result_text):
-    buffer = BytesIO()
-    c = canvas.Canvas(buffer, pagesize=A4)
-    width, height = A4
-
-    # Logo
-    logo_url = "https://www.mucem.org/sites/default/files/2022-08/logo-Morgane.gif"
-    try:
-        response = requests.get(logo_url, stream=True, timeout=5)
-        if response.status_code == 200:
-            logo = ImageReader(response.raw)
-            c.drawImage(logo, 50, height - 100, width=60, height=60, mask='auto')
-    except Exception as e:
-        print("Logo non chargé :", e)
-
-    # Titre et date
-    c.setFont("Helvetica-Bold", 16)
-    c.drawString(120, height - 50, "Fiche d'analyse ICPE / VRD")
-    c.setFont("Helvetica", 10)
-    c.drawString(120, height - 70, f"Date : {datetime.now().strftime('%d/%m/%Y %H:%M')}")
-
-    # Référence réglementaire
-    c.setFont("Helvetica-Oblique", 9)
-    c.drawString(50, height - 105, "Référence réglementaire : Arrêté ministériel du 11 avril 2017 applicable aux ICPE")
-
-    # Modification décrite
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(50, height - 140, "✍️ Modification décrite :")
-    text = c.beginText(50, height - 160)
-    text.setFont("Helvetica", 10)
-    for line in user_input.split("\n"):
-        text.textLine(line.strip())
-    c.drawText(text)
-
-    # Analyse
-    y_offset = text.getY() - 30
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(50, y_offset, "✅ Analyse réglementaire :")
-
-    result_text_obj = c.beginText(50, y_offset - 20)
-    result_text_obj.setFont("Helvetica", 10)
-    max_width = width - 100
-    for line in result_text.split("\n"):
-        if c.stringWidth(line, "Helvetica", 10) > max_width:
-            words = line.split()
-            new_line = []
-            current_length = 0
-            for word in words:
-                word_length = c.stringWidth(word + " ", "Helvetica", 10)
-                if current_length + word_length < max_width:
-                    new_line.append(word)
-                    current_length += word_length
-                else:
-                    result_text_obj.textLine(" ".join(new_line))
-                    new_line = [word]
-                    current_length = word_length
-            if new_line:
-                result_text_obj.textLine(" ".join(new_line))
-        else:
-            result_text_obj.textLine(line)
-    c.drawText(result_text_obj)
-
-    # === Pied de page professionnel ===
-    c.setLineWidth(0.5)
-    c.setStrokeColorRGB(0.7, 0.7, 0.7)
-    c.line(50, 40, width - 50, 40)
-    c.setFont("Helvetica-Oblique", 8)
-    c.drawString(50, 28, "📄 Fiche générée automatiquement – Projet Quartus Logistique – Analyse ICPE / VRD")
-    c.drawRightString(width - 50, 28, f"Page 1 | {datetime.now().strftime('%d/%m/%Y')}")
-
-    c.showPage()
-    c.save()
-    buffer.seek(0)
-    return buffer
-
-# === BOUTON DE TÉLÉCHARGEMENT ===
-if user_input and result_text:
-    pdf_file = generate_pdf(user_input, result_text)
-    st.download_button(
-        label="📥 Télécharger la fiche d'analyse PDF",
-        data=pdf_file,
-        file_name="fiche_analyse_ICPE_VRD.pdf",
-        mime="application/pdf",
-        use_container_width=True
-    )
-
+                st.error(f"Erreur API : {e}")
