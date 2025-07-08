@@ -10,27 +10,23 @@ from datetime import datetime
 st.set_page_config(page_title="ICPE / VRD Analyzer", layout="centered", page_icon="🛠️")
 
 # === STYLE PERSONNALISÉ ===
-st.markdown("""
-<style>
-.stApp {
-    background: linear-gradient(145deg, #e3f2fd, #e0f7fa);
-    font-family: 'Segoe UI', sans-serif;
-}
-.header-banner {
-    background-color: #00695c;
-    padding: 15px;
-    border-radius: 0 0 15px 15px;
-    text-align: center;
-    color: white;
-}
-</style>
-
-<div class='header-banner'>
-    <h2>🔍 Analyse ICPE / VRD</h2>
-    <p>Évalue automatiquement les impacts réglementaires de ton projet</p>
-</div>
-""", unsafe_allow_html=True)
-
+st.markdown(
+    """
+    <style>
+    .stApp {
+        background: url('https://uploads-ssl.webflow.com/60f1b499b7706165688fffa8/6422fdda44491084db9dec8f_MINIATURES%20prevedia%20(80).jpg');
+        background-size: cover;
+        background-position: center;
+    }
+    .main .block-container {
+        background-color: rgba(255,255,255,0.85);
+        padding: 2rem;
+        border-radius: 15px;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 # === BARRE LATÉRALE ===
 st.sidebar.title("🧭 Navigation")
