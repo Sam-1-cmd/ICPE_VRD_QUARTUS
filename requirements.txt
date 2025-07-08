@@ -6,3 +6,4 @@ reportlab
 langchain
 faiss-cpu
 pypdf
+pymupdf
