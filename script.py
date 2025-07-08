@@ -14,7 +14,7 @@ st.markdown(
     """
     <style>
     .stApp {
-        background-image: url("https://tse3.mm.bing.net/th/id/OIP.bGfOFVfVkbEdNhADB61cMAHaFj?w=355&h=355&c=7");
+        background-image: url("https://tse3.mm.bing.net/th/id/OIP.bGfOFVfVkbEdNhADB61cMAHaFj?w=355&h=355&c=7.gif");
         background-size: cover;
         background-attachment: fixed;
         background-position: center;
