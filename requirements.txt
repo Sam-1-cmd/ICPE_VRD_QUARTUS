@@ -3,3 +3,4 @@ openai>=1.1.0
 python-dotenv
 PyPDF2
 reportlab
+pip install langchain faiss-cpu pypdf
