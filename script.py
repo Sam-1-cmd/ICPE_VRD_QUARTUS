@@ -201,17 +201,28 @@ def generate_pdf(user_input, result_text):
         else:
             result_text_obj.textLine(line)
     c.drawText(result_text_obj)
-    # === Pied de page professionnel ===
-    c.setLineWidth(0.5)
-    c.setStrokeColorRGB(0.7, 0.7, 0.7)
-    c.line(50, 40, width - 50, 40)
+    # === PIED DE PAGE PROFESSIONNEL ===
+# Ligne de séparation
+c.setLineWidth(0.5)
+c.setStrokeColorRGB(0.7, 0.7, 0.7)  # Gris clair
+c.line(50, 50, width - 50, 50)  # Positionnée un peu plus haut
 
-    c.setFont("Helvetica-Oblique", 8)
-    c.drawString(50, 28, "📄 Fiche générée automatiquement – Projet Quartus Logistique – Analyse ICPE / VRD")
-    c.drawRightString(width - 50, 28, f"Page 1 | {datetime.now().strftime('%d/%m/%Y')}")
-    
-    c.showPage()
-    c.save()
+# Texte du pied de page
+c.setFont("Helvetica-Oblique", 8)
+c.setFillColorRGB(0.3, 0.3, 0.3)  # Gris foncé pour meilleure lisibilité
+
+# Texte à gauche
+footer_left = "📄 Fiche générée automatiquement - Projet Quartus Logistique - Analyse ICPE/VRD"
+c.drawString(50, 35, footer_left)  # Position verticale ajustée
+
+# Texte à droite (aligné à droite)
+footer_right = f"Page 1/1 | {datetime.now().strftime('%d/%m/%Y %H:%M')}"  # Ajout de l'heure
+c.drawRightString(width - 50, 35, footer_right)  # Même hauteur que le texte gauche
+
+# Ajout éventuel d'un logo en bas à gauche
+# logo_path = "chemin/vers/logo.png"
+# if os.path.exists(logo_path):
+#     c.drawImage(logo_path, 50, 10, width=30, preserveAspectRatio=True)
 
 
 # === BOUTON DE TÉLÉCHARGEMENT ===
