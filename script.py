@@ -67,35 +67,42 @@ if uploaded_file is not None:
     except Exception as e:
         st.sidebar.error(f"Erreur lors de la lecture du PDF : {e}")
 
-from langchain.document_loaders import PyPDFLoader
-import tempfile
+docs_similaires = []
 
 if uploaded_file is not None:
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
-        tmp_file.write(uploaded_file.read())
-        tmp_file_path = tmp_file.name
+    st.sidebar.success(f"✅ Fichier chargé : {uploaded_file.name}")
+    try:
+        # Créer un fichier temporaire
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+            tmp_file.write(uploaded_file.read())
+            tmp_file_path = tmp_file.name
 
-    # 1. Charger
-    loader = PyPDFLoader(tmp_file_path)
-    documents = loader.load()
+        # Charger et découper le document
+        loader = PyPDFLoader(tmp_file_path)
+        documents = loader.load()
 
-    # 2. Split
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-    docs = text_splitter.split_documents(documents)
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+        docs = text_splitter.split_documents(documents)
 
-    # 3. Embedding + FAISS
-    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-    vectordb = FAISS.from_documents(docs, embeddings)
+        # Embedding et FAISS
+        embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+        vectordb = FAISS.from_documents(docs, embeddings)
 
-    # 4. Recherche
-    query = "Quels sont les points clés sur les bassins de rétention ?"
-    docs_similaires = vectordb.similarity_search(query, k=3)
+        # Recherche
+        query = "Quels sont les points clés sur les bassins de rétention ?"
+        docs_similaires = vectordb.similarity_search(query, k=3)
 
-    # 5. Affichage
-    st.markdown("### 🔍 Résultats de la recherche dans le document :")
-    for i, d in enumerate(docs_similaires):
-        st.markdown(f"**Résultat {i+1} :**")
-        st.write(d.page_content)
+        # Affichage des résultats
+        st.markdown("### 🔍 Résultats de la recherche dans le document :")
+        for i, d in enumerate(docs_similaires):
+            st.markdown(f"**Résultat {i+1} :**")
+            st.write(d.page_content)
+
+        # Nettoyage du fichier temporaire (bonne pratique)
+        os.unlink(tmp_file_path)
+
+    except Exception as e:
+        st.sidebar.error(f"❌ Erreur lors de la lecture ou indexation du PDF : {e}")
 
 
 for i, d in enumerate(docs_similaires):
@@ -176,14 +183,6 @@ Pensez à mettre à jour le Porter-à-Connaissance ICPE si nécessaire."""
                 st.markdown(result_text)
             except Exception as e:
                 st.error(f"❌ Erreur lors de l'appel API : {str(e)}")
-
-
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.utils import ImageReader
-from datetime import datetime
-from io import BytesIO
-import requests
 
 def generate_pdf(user_input, result_text):
     buffer = BytesIO()
