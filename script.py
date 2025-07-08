@@ -68,7 +68,6 @@ if uploaded_file is not None:
         st.sidebar.error(f"Erreur lors de la lecture du PDF : {e}")
 
 docs_similaires = []
-
 if uploaded_file is not None:
     st.sidebar.success(f"✅ Fichier chargé : {uploaded_file.name}")
     try:
