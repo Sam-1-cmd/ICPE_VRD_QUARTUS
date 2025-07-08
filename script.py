@@ -5,7 +5,10 @@ from io import BytesIO
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from datetime import datetime
-
+from langchain.document_loaders import PyPDFLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.embeddings import HuggingFaceEmbeddings
+from langchain.vectorstores import FAISS
 # === CONFIGURATION DE LA PAGE ===
 st.set_page_config(page_title="ICPE / VRD Analyzer", layout="centered", page_icon="🛠️")
 
@@ -58,6 +61,28 @@ if uploaded_file is not None:
     except Exception as e:
         st.sidebar.error(f"Erreur lors de la lecture du PDF : {e}")
 
+loader = PyPDFLoader("mon_document.pdf")
+documents = loader.load()
+
+text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=1000,
+    chunk_overlap=200
+)
+docs = text_splitter.split_documents(documents)
+embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+vectordb = FAISS.from_documents(docs, embeddings)
+
+# Sauvegarde sur disque pour réutilisation
+vectordb.save_local("faiss_index")
+# Recharger l’index (optionnel)
+vectordb = FAISS.load_local("faiss_index", embeddings)
+
+query = "Quels sont les points clés sur les bassins de rétention ?"
+docs_similaires = vectordb.similarity_search(query, k=3)
+
+for i, d in enumerate(docs_similaires):
+    st.markdown(f"**Résultat {i+1} :**")
+    st.write(d.page_content)
 # === EN-TÊTE AVEC LOGO ===
 col1, col2 = st.columns([1, 5])
 with col1:
