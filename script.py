@@ -137,7 +137,7 @@ def generate_pdf(user_input, result_text):
     width, height = A4
     
     # --- Chargement du logo Quartus ---
-    logo_path = "assets/logo_quartus.png"  # Chemin local vers le logo
+    logo_path = "https://www.galivel.com/media/full/nouveau_logo_quartus-5.jpg" 
     logo = ImageReader(logo_path)
     logo_width = 100  # en points
     logo_height = 40  # en points
