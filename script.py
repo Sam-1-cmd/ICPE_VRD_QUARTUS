@@ -229,5 +229,42 @@ if user_input and result_text:
     )
 
 # === PIED DE PAGE ===
-st.markdown("---")
-st.caption("🔖 Quartus · Projet ICPE / VRD · Version 1.0 · © 2025")
+st.markdown("""
+<style>
+  .footer { background:#f8f9fa; padding:40px 20px; font-family:sans-serif; color:#333; }
+  .footer .col { display:inline-block; vertical-align:top; width:30%; margin-right:3%; }
+  .footer img.logo { max-height:50px; margin-bottom:15px; }
+  .footer h4 { margin-bottom:10px; font-size:1rem; }
+  .footer a { color:#333; text-decoration:none; font-size:0.9rem; }
+  .footer a:hover { text-decoration:underline; }
+  .footer .social img { width:24px; margin-right:10px; }
+  .footer .bottom { text-align:center; border-top:1px solid #ddd; margin-top:30px; padding-top:15px; font-size:0.8rem; color:#666; }
+</style>
+
+<div class="footer">
+  <div class="col">
+    <img class="logo" src="https://www.galivel.com/media/full/nouveau_logo_quartus-5.jpg" alt="Quartus"/>
+    <img class="logo" src="https://upload.wikimedia.org/wikipedia/commons/c/c3/Logo-of-the-French-Government.png" alt="République française"/>
+  </div>
+  <div class="col">
+    <h4>LIENS UTILES</h4>
+    <a href="#">Accueil</a><br>
+    <a href="#">Les risques</a><br>
+    <a href="#">Recherche & Appui</a><br>
+    <a href="#">Contactez-nous</a>
+  </div>
+  <div class="col">
+    <h4>SUIVEZ-NOUS</h4>
+    <div class="social">
+      <a href="#"><img src="https://image.flaticon.com/icons/png/512/733/733547.png" alt="Facebook"/></a>
+      <a href="#"><img src="https://image.flaticon.com/icons/png/512/733/733646.png" alt="YouTube"/></a>
+      <a href="#"><img src="https://image.flaticon.com/icons/png/512/300/300221.png" alt="RSS"/></a>
+      <a href="#"><img src="https://image.flaticon.com/icons/png/512/145/145807.png" alt="LinkedIn"/></a>
+    </div>
+  </div>
+  <div class="bottom">
+    © 2025 Quartus · Tous droits réservés.
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
