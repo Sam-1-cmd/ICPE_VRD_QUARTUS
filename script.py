@@ -125,35 +125,63 @@ Pensez à mettre à jour le Porter-à-Connaissance ICPE si nécessaire."""
                 st.error(f"❌ Erreur lors de l'appel API : {str(e)}")
 
 # === GÉNÉRATION DE PDF ===
+from io import BytesIO
+from datetime import datetime
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.utils import ImageReader
+from reportlab.pdfgen import canvas
+
 def generate_pdf(user_input, result_text):
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
-
-    # En-tête
-    c.setFont("Helvetica-Bold", 16)
-    c.drawString(50, height - 50, "Fiche d'analyse ICPE / VRD")
-    c.setFont("Helvetica", 10)
-    c.drawString(50, height - 70, f"Date : {datetime.now().strftime('%d/%m/%Y %H:%M')}")
-
+    
+    # --- Chargement du logo Quartus ---
+    logo_path = "assets/logo_quartus.png"  # Chemin local vers le logo
+    logo = ImageReader(logo_path)
+    logo_width = 100  # en points
+    logo_height = 40  # en points
+    
+    def _draw_header_footer(page_num):
+        # En-tête
+        c.setFont("Helvetica-Bold", 16)
+        c.drawString(50, height - 50, "Fiche d'analyse ICPE / VRD")
+        # Logo en haut à droite
+        c.drawImage(logo,
+                    width - 50 - logo_width, height - 50 - logo_height/2,
+                    width=logo_width, height=logo_height,
+                    mask='auto')
+        c.setFont("Helvetica", 10)
+        c.drawString(50, height - 70, f"Date : {datetime.now():%d/%m/%Y %H:%M}")
+        
+        # Pied de page
+        footer_text = f"Page {page_num}"
+        c.setFont("Helvetica-Oblique", 8)
+        c.drawCentredString(width / 2, 20, footer_text)
+        # Vous pouvez ajouter d'autres infos en pied de page :
+        # c.drawString(50, 20, "Quartus – Document confidentiel")
+    
+    # Contenu de la première page
+    page_num = 1
+    _draw_header_footer(page_num)
+    
     # Section description
+    y = height - 100
     c.setFont("Helvetica-Bold", 12)
-    c.drawString(50, height - 100, "✍️ Modification décrite :")
-    text = c.beginText(50, height - 120)
+    c.drawString(50, y, "✍️ Modification décrite :")
+    text = c.beginText(50, y - 20)
     text.setFont("Helvetica", 10)
     for line in user_input.split("\n"):
         text.textLine(line.strip())
     c.drawText(text)
-
+    
     # Section analyse
-    y_offset = text.getY() - 30  # Plus d'espace entre les sections
+    y_offset = text.getY() - 30
     c.setFont("Helvetica-Bold", 12)
     c.drawString(50, y_offset, "✅ Analyse réglementaire :")
     
     result_text_obj = c.beginText(50, y_offset - 20)
     result_text_obj.setFont("Helvetica", 10)
-    
-    # Gestion des lignes trop longues
     max_width = width - 100
     for line in result_text.split("\n"):
         if c.stringWidth(line, "Helvetica", 10) > max_width:
@@ -161,35 +189,33 @@ def generate_pdf(user_input, result_text):
             new_line = []
             current_length = 0
             for word in words:
-                word_length = c.stringWidth(word + " ", "Helvetica", 10)
-                if current_length + word_length < max_width:
+                w_len = c.stringWidth(word + " ", "Helvetica", 10)
+                if current_length + w_len < max_width:
                     new_line.append(word)
-                    current_length += word_length
+                    current_length += w_len
                 else:
                     result_text_obj.textLine(" ".join(new_line))
                     new_line = [word]
-                    current_length = word_length
+                    current_length = w_len
             if new_line:
                 result_text_obj.textLine(" ".join(new_line))
         else:
             result_text_obj.textLine(line)
-    
     c.drawText(result_text_obj)
-
+    
+    # Fin de page 1
     c.showPage()
+    
+    # Si vous avez plusieurs pages, répétez _draw_header_footer(page_num) sur chaque page
+    # page_num += 1
+    # _draw_header_footer(page_num)
+    # ... contenu page 2 ...
+    # c.showPage()
+    
     c.save()
     buffer.seek(0)
     return buffer
 
-if user_input and result_text:
-    pdf_file = generate_pdf(user_input, result_text)
-    st.download_button(
-        label="📥 Télécharger la fiche d'analyse PDF",
-        data=pdf_file,
-        file_name="fiche_analyse_ICPE_VRD.pdf",
-        mime="application/pdf",
-        use_container_width=True
-    )
 
 # === PIED DE PAGE ===
 st.markdown("---")
