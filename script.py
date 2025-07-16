@@ -232,59 +232,6 @@ if user_input and result_text:
 import streamlit as st
 
 # --- PIED DE PAGE PROFESSIONNEL ---
-st.markdown("""<style>
-.footer {
-  background-color: #f8f9fa;
-  padding: 40px 0;
-  font-family: sans-serif;
-  color: #333;
-}
-.footer h4 {
-  margin-bottom: 10px;
-  font-size: 1rem;
-}
-.footer a {
-  color: #333;
-  text-decoration: none;
-  font-size: 0.9rem;
-}
-.footer a:hover {
-  text-decoration: underline;
-}
-.footer .social img {
-  width: 24px;
-  margin-right: 10px;
-  vertical-align: middle;
-}
-.footer .bottom {
-  text-align: center;
-  padding-top: 20px;
-  border-top: 1px solid #ddd;
-  font-size: 0.8rem;
-  color: #666;
-}
-</style>""", unsafe_allow_html=True)
-
-col1, col2, col3 = st.columns([1,1,1], gap="small")
-with col1:
-    st.image("https://www.galivel.com/media/full/nouveau_logo_quartus-5.jpg", width=80)
-    st.image("https://upload.wikimedia.org/wikipedia/commons/c/c3/Logo-of-the-French-Government.png", width=80)
-with col2:
-    st.markdown("**LIENS UTILES**")
-    st.markdown("""
-    - [Accueil](#)
-    - [Les risques](#)
-    - [Recherche & Appui](#)
-    - [Contactez-nous](#)
-    """, unsafe_allow_html=True)
-with col3:
-    st.markdown("**SUIVEZ-NOUS**")
-    social = {
-        "YouTube":  "https://logos-world.net/wp-content/uploads/2020/04/YouTube-Logo-2015-2017.png",
-        "LinkedIn":"https://th.bing.com/th/id/R.ef2f3c0ea2d1116f00a5bc56b8c066ce?rik=GYaDoFewrbjMYA&riu=http%3a%2f%2f1000marcas.net%2fwp-content%2fuploads%2f2020%2f01%2fLogo-Linkedin.png&ehk=S4bpGdTYO0hvPM28u%2bFMX4ma7sBWXFdx85iEGZWSx1I%3d&risl=&pid=ImgRaw&r=0"
-    }
-    for name, url in social.items():
-        st.markdown(f"<a href='#{name}' target='_blank'><img src='{url}' alt='{name}' /></a>", unsafe_allow_html=True)
 
 st.markdown('<div class="bottom">© 2025 Quartus · Tous droits réservés.</div>', unsafe_allow_html=True)
 
