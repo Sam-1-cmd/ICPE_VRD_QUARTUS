@@ -125,6 +125,7 @@ Pensez à mettre à jour le Porter-à-Connaissance ICPE si nécessaire."""
                 st.error(f"❌ Erreur lors de l'appel API : {str(e)}")
 
 # === GÉNÉRATION DE PDF ===
+# === GÉNÉRATION DE PDF ===
 from io import BytesIO
 from datetime import datetime
 from reportlab.lib.pagesizes import A4
@@ -147,10 +148,12 @@ def generate_pdf(user_input, result_text):
         c.setFont("Helvetica-Bold", 16)
         c.drawString(50, height - 50, "Fiche d'analyse ICPE / VRD")
         # Logo en haut à droite
-        c.drawImage(logo,
-                    width - 50 - logo_width, height - 50 - logo_height/2,
-                    width=logo_width, height=logo_height,
-                    mask='auto')
+        c.drawImage(
+            logo,
+            width - 50 - logo_width, height - 50 - logo_height/2,
+            width=logo_width, height=logo_height,
+            mask='auto'
+        )
         c.setFont("Helvetica", 10)
         c.drawString(50, height - 70, f"Date : {datetime.now():%d/%m/%Y %H:%M}")
         
@@ -158,8 +161,25 @@ def generate_pdf(user_input, result_text):
         footer_text = f"Page {page_num}"
         c.setFont("Helvetica-Oblique", 8)
         c.drawCentredString(width / 2, 20, footer_text)
-        # Vous pouvez ajouter d'autres infos en pied de page :
-        # c.drawString(50, 20, "Quartus – Document confidentiel")
+    
+    # --- WRAP LINES ---
+    def wrap_lines(text, max_width, font_name="Helvetica", font_size=10):
+        """
+        Coupe la chaîne `text` en plusieurs lignes pour tenir dans `max_width` pts.
+        """
+        words = text.split()
+        lines = []
+        cur = ""
+        for w in words:
+            test = w if not cur else f"{cur} {w}"
+            if c.stringWidth(test, font_name, font_size) <= max_width:
+                cur = test
+            else:
+                lines.append(cur)
+                cur = w
+        if cur:
+            lines.append(cur)
+        return lines
     
     # Contenu de la première page
     page_num = 1
@@ -172,52 +192,32 @@ def generate_pdf(user_input, result_text):
     text_obj = c.beginText(50, y - 20)
     text_obj.setFont("Helvetica", 10)
     maxw = width - 100
-
+    
     for raw_line in user_input.splitlines():
         for wrapped in wrap_lines(raw_line, maxw):
             text_obj.textLine(wrapped)
     c.drawText(text_obj)
-
+    
     # Section analyse
-    y_offset = text.getY() - 30
+    y_offset = text_obj.getY() - 30
     c.setFont("Helvetica-Bold", 12)
     c.drawString(50, y_offset, "✅ Analyse réglementaire :")
     
     result_text_obj = c.beginText(50, y_offset - 20)
     result_text_obj.setFont("Helvetica", 10)
-    max_width = width - 100
-    for line in result_text.split("\n"):
-        if c.stringWidth(line, "Helvetica", 10) > max_width:
-            words = line.split()
-            new_line = []
-            current_length = 0
-            for word in words:
-                w_len = c.stringWidth(word + " ", "Helvetica", 10)
-                if current_length + w_len < max_width:
-                    new_line.append(word)
-                    current_length += w_len
-                else:
-                    result_text_obj.textLine(" ".join(new_line))
-                    new_line = [word]
-                    current_length = w_len
-            if new_line:
-                result_text_obj.textLine(" ".join(new_line))
-        else:
-            result_text_obj.textLine(line)
+    maxw2 = width - 100
+    for raw_line in result_text.splitlines():
+        for wrapped in wrap_lines(raw_line, maxw2):
+            result_text_obj.textLine(wrapped)
     c.drawText(result_text_obj)
     
     # Fin de page 1
     c.showPage()
-    
-    # Si vous avez plusieurs pages, répétez _draw_header_footer(page_num) sur chaque page
-    # page_num += 1
-    # _draw_header_footer(page_num)
-    # ... contenu page 2 ...
-    # c.showPage()
-    
     c.save()
     buffer.seek(0)
     return buffer
+
+# Intégration avec Streamlit
 if user_input and result_text:
     pdf_file = generate_pdf(user_input, result_text)
     st.download_button(
