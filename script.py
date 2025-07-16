@@ -166,15 +166,18 @@ def generate_pdf(user_input, result_text):
     _draw_header_footer(page_num)
     
     # Section description
-    y = height - 100
+      y = height - 100
     c.setFont("Helvetica-Bold", 12)
     c.drawString(50, y, "✍️ Modification décrite :")
-    text = c.beginText(50, y - 20)
-    text.setFont("Helvetica", 10)
-    for line in user_input.split("\n"):
-        text.textLine(line.strip())
-    c.drawText(text)
-    
+    text_obj = c.beginText(50, y - 20)
+    text_obj.setFont("Helvetica", 10)
+    maxw = width - 100
+
+    for raw_line in user_input.splitlines():
+        for wrapped in wrap_lines(raw_line, maxw):
+            text_obj.textLine(wrapped)
+    c.drawText(text_obj)
+
     # Section analyse
     y_offset = text.getY() - 30
     c.setFont("Helvetica-Bold", 12)
