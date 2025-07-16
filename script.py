@@ -215,7 +215,15 @@ def generate_pdf(user_input, result_text):
     c.save()
     buffer.seek(0)
     return buffer
-
+if user_input and result_text:
+    pdf_file = generate_pdf(user_input, result_text)
+    st.download_button(
+        label="📥 Télécharger la fiche d'analyse PDF",
+        data=pdf_file,
+        file_name="fiche_analyse_ICPE_VRD.pdf",
+        mime="application/pdf",
+        use_container_width=True
+    )
 
 # === PIED DE PAGE ===
 st.markdown("---")
