@@ -229,42 +229,65 @@ if user_input and result_text:
     )
 
 # === PIED DE PAGE ===
-st.markdown("""
-<style>
-  .footer { background:#f8f9fa; padding:40px 20px; font-family:sans-serif; color:#333; }
-  .footer .col { display:inline-block; vertical-align:top; width:30%; margin-right:3%; }
-  .footer img.logo { max-height:50px; margin-bottom:15px; }
-  .footer h4 { margin-bottom:10px; font-size:1rem; }
-  .footer a { color:#333; text-decoration:none; font-size:0.9rem; }
-  .footer a:hover { text-decoration:underline; }
-  .footer .social img { width:24px; margin-right:10px; }
-  .footer .bottom { text-align:center; border-top:1px solid #ddd; margin-top:30px; padding-top:15px; font-size:0.8rem; color:#666; }
-</style>
+import streamlit as st
 
-<div class="footer">
-  <div class="col">
-    <img class="logo" src="https://www.galivel.com/media/full/nouveau_logo_quartus-5.jpg" alt="Quartus"/>
-    <img class="logo" src="https://upload.wikimedia.org/wikipedia/commons/c/c3/Logo-of-the-French-Government.png" alt="République française"/>
-  </div>
-  <div class="col">
-    <h4>LIENS UTILES</h4>
-    <a href="#">Accueil</a><br>
-    <a href="#">Les risques</a><br>
-    <a href="#">Recherche & Appui</a><br>
-    <a href="#">Contactez-nous</a>
-  </div>
-  <div class="col">
-    <h4>SUIVEZ-NOUS</h4>
-    <div class="social">
-      <a href="#"><img src="https://image.flaticon.com/icons/png/512/733/733547.png" alt="Facebook"/></a>
-      <a href="#"><img src="https://image.flaticon.com/icons/png/512/733/733646.png" alt="YouTube"/></a>
-      <a href="#"><img src="https://image.flaticon.com/icons/png/512/300/300221.png" alt="RSS"/></a>
-      <a href="#"><img src="https://image.flaticon.com/icons/png/512/145/145807.png" alt="LinkedIn"/></a>
-    </div>
-  </div>
-  <div class="bottom">
-    © 2025 Quartus · Tous droits réservés.
-  </div>
-</div>
-""", unsafe_allow_html=True)
+# --- PIED DE PAGE PROFESSIONNEL ---
+st.markdown("""<style>
+.footer {
+  background-color: #f8f9fa;
+  padding: 40px 0;
+  font-family: sans-serif;
+  color: #333;
+}
+.footer h4 {
+  margin-bottom: 10px;
+  font-size: 1rem;
+}
+.footer a {
+  color: #333;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+.footer a:hover {
+  text-decoration: underline;
+}
+.footer .social img {
+  width: 24px;
+  margin-right: 10px;
+  vertical-align: middle;
+}
+.footer .bottom {
+  text-align: center;
+  padding-top: 20px;
+  border-top: 1px solid #ddd;
+  font-size: 0.8rem;
+  color: #666;
+}
+</style>""", unsafe_allow_html=True)
+
+col1, col2, col3 = st.columns([1,1,1], gap="small")
+with col1:
+    st.image("https://www.galivel.com/media/full/nouveau_logo_quartus-5.jpg", width=80)
+    st.image("https://upload.wikimedia.org/wikipedia/commons/c/c3/Logo-of-the-French-Government.png", width=80)
+with col2:
+    st.markdown("**LIENS UTILES**")
+    st.markdown("""
+    - [Accueil](#)
+    - [Les risques](#)
+    - [Recherche & Appui](#)
+    - [Contactez-nous](#)
+    """, unsafe_allow_html=True)
+with col3:
+    st.markdown("**SUIVEZ-NOUS**")
+    social = {
+        "Facebook": "https://image.flaticon.com/icons/png/512/733/733547.png",
+        "YouTube":  "https://image.flaticon.com/icons/png/512/733/733646.png",
+        "RSS":      "https://image.flaticon.com/icons/png/512/300/300221.png",
+        "LinkedIn":"https://image.flaticon.com/icons/png/512/145/145807.png"
+    }
+    for name, url in social.items():
+        st.markdown(f"<a href='#{name}' target='_blank'><img src='{url}' alt='{name}' /></a>", unsafe_allow_html=True)
+
+st.markdown('<div class="bottom">© 2025 Quartus · Tous droits réservés.</div>', unsafe_allow_html=True)
+
 
