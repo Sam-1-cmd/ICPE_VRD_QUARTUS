@@ -280,10 +280,8 @@ with col2:
 with col3:
     st.markdown("**SUIVEZ-NOUS**")
     social = {
-        "Facebook": "https://image.flaticon.com/icons/png/512/733/733547.png",
-        "YouTube":  "https://image.flaticon.com/icons/png/512/733/733646.png",
-        "RSS":      "https://image.flaticon.com/icons/png/512/300/300221.png",
-        "LinkedIn":"https://image.flaticon.com/icons/png/512/145/145807.png"
+        "YouTube":  "https://logos-world.net/wp-content/uploads/2020/04/YouTube-Logo-2015-2017.png",
+        "LinkedIn":"https://th.bing.com/th/id/R.ef2f3c0ea2d1116f00a5bc56b8c066ce?rik=GYaDoFewrbjMYA&riu=http%3a%2f%2f1000marcas.net%2fwp-content%2fuploads%2f2020%2f01%2fLogo-Linkedin.png&ehk=S4bpGdTYO0hvPM28u%2bFMX4ma7sBWXFdx85iEGZWSx1I%3d&risl=&pid=ImgRaw&r=0"
     }
     for name, url in social.items():
         st.markdown(f"<a href='#{name}' target='_blank'><img src='{url}' alt='{name}' /></a>", unsafe_allow_html=True)
