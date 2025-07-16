@@ -166,7 +166,7 @@ def generate_pdf(user_input, result_text):
     _draw_header_footer(page_num)
     
     # Section description
-      y = height - 100
+    y = height - 100
     c.setFont("Helvetica-Bold", 12)
     c.drawString(50, y, "✍️ Modification décrite :")
     text_obj = c.beginText(50, y - 20)
