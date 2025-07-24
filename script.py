@@ -4,12 +4,21 @@ from PyPDF2 import PdfReader
 from io import BytesIO
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
+from reportlab.lib.utils import ImageReader
 from datetime import datetime
 
-# === CONFIGURATION DE LA PAGE ===
+# —— NOUVEAUX IMPORTS POUR RAG LOCAL ——
+import glob
+import faiss
+import numpy as np
+import fitz
+from sentence_transformers import SentenceTransformer
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
+
+# === CONFIG PAGE ===
 st.set_page_config(page_title="ICPE / VRD Analyzer", layout="centered", page_icon="🛠️")
 
-# === STYLE PERSONNALISÉ ===
+# === STYLE ===
 st.markdown(
     """
     <style>
@@ -29,7 +38,6 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-
 # === BARRE LATÉRALE ===
 st.sidebar.title("🧭 Navigation")
 MODE = st.sidebar.radio("🧠 Mode d'analyse :", ["Démo hors ligne", "API OpenAI (GPT)"])
@@ -37,6 +45,7 @@ MODE = st.sidebar.radio("🧠 Mode d'analyse :", ["Démo hors ligne", "API OpenA
 st.sidebar.markdown("📂 **Téléverse un document réglementaire**")
 uploaded_file = st.sidebar.file_uploader("Fichier PDF", type=["pdf"], label_visibility="collapsed")
 
+# Extraction du texte brut du PDF
 pdf_text = ""
 if uploaded_file is not None:
     st.sidebar.success(f"✅ Fichier chargé : {uploaded_file.name}")
@@ -48,7 +57,7 @@ if uploaded_file is not None:
     except Exception as e:
         st.sidebar.error(f"Erreur lors de la lecture du PDF : {e}")
 
-# === EN-TÊTE AVEC LOGO ===
+# === EN-TÊTE ===
 col1, col2 = st.columns([1, 5])
 with col1:
     st.image("https://www.construction21.org/france/data/sources/users/20051/20230217094921-5quartuslogoversion1-noire.jpg", width=150)
@@ -57,182 +66,196 @@ with col2:
     st.markdown("**Outil d'analyse réglementaire des projets VRD liés aux ICPE**")
 
 st.markdown("---")
+st.info("👋 Bienvenue ! Décris ici ta modification VRD pour évaluer son impact réglementaire ICPE.")
 
-# === MESSAGE D'ACCUEIL ===
-st.info("👋 Bienvenue ! Décrivez une intervention VRD dans la zone ci-dessous pour en évaluer l'impact réglementaire ICPE.")
-
-# === SAISIE DU TEXTE À ANALYSER ===
-st.markdown("### ✍️ Décrivez la modification de travaux VRD à analyser")
+# === SAISIE DE L'UTILISATEUR ===
+st.markdown("### ✍️ Décris la modification VRD à analyser")
 with st.expander("🔍 Besoin d'un exemple ?"):
     st.markdown("""
-    **Exemple :** 
-    Déplacement d'un bassin de rétention vers l'ouest, en dehors de la zone inondable, 
+    **Exemple :**  
+    Déplacement d'un bassin de rétention vers l'ouest, en dehors de la zone inondable,  
     pour libérer l'accès pompier. Le nouveau bassin aura une capacité de 60 000 m³.
     """)
 
 user_input = st.text_area(
     "Saisie de la modification VRD :",
     placeholder="Décris ici ta modification (ouvrage, zone, raison, impact...)",
-    height=200,
-    label_visibility="visible"
+    height=200
 )
 
-# === ANALYSE LORS DU CLIC ===
+# === FONCTIONS UTILES RAG LOCAL ===
+def chunk_text(text: str, size: int = 1000, overlap: int = 200):
+    """Découpe en chunks de `size` caractères avec chevauchement."""
+    chunks = []
+    start = 0
+    while start < len(text):
+        end = min(start + size, len(text))
+        chunks.append(text[start:end])
+        start += size - overlap
+    return chunks
+
+@st.cache_resource(show_spinner=False)
+def init_local_rag(text: str):
+    """
+    Construit :
+      - la liste de chunks,
+      - l'embeddeur et embeddings normalisés,
+      - l'index FAISS,
+      - le pipeline de génération Flan-T5-small (CPU).
+    """
+    # 1) chunking du PDF
+    chunks = chunk_text(text)
+
+    # 2) embeddings
+    embedder = SentenceTransformer("all-MiniLM-L6-v2")
+    embs = embedder.encode(chunks, convert_to_numpy=True, show_progress_bar=False)
+    embs /= np.linalg.norm(embs, axis=1, keepdims=True)
+
+    # 3) index FAISS (cosine via Inner-Product)
+    index = faiss.IndexFlatIP(embs.shape[1])
+    index.add(embs)
+
+    # 4) pipeline Flan-T5-small CPU
+    tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-small")
+    model     = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-small").to("cpu")
+    generator = pipeline(
+        "text2text-generation",
+        model=model,
+        tokenizer=tokenizer,
+        device=-1
+    )
+
+    return chunks, embedder, index, generator
+
+# === BOUTON ANALYSE ===
 result_text = ""
 if st.button("🔍 Analyser la situation"):
     if not user_input.strip():
-        st.warning("⚠️ Merci de décrire une intervention avant de lancer l'analyse.")
+        st.warning("⚠️ Décris d'abord ta modification VRD.")
     else:
         if MODE == "Démo hors ligne":
-            st.info("🧪 Mode démonstration local")
-            result_text = """✅ La modification décrite concerne potentiellement un ouvrage hydraulique situé en zone ICPE.
-Vérifiez la conformité avec l'arrêté du 11 avril 2017.
-Si volume > 50 000 m³, cela peut activer la rubrique 1510.
-Pensez à mettre à jour le Porter-à-Connaissance ICPE si nécessaire."""
-            st.markdown(f"### ✅ Analyse simulée :\n{result_text}")
-            
+            if not pdf_text:
+                st.error("⚠️ Téléverse un document PDF pour le mode hors ligne.")
+            else:
+                st.info("🧪 Mode démonstration **local RAG**")
+                # --- build RAG pipeline on PDF ---
+                chunks, embedder, index, generator = init_local_rag(pdf_text)
+                # --- retrieval ---
+                q_emb = embedder.encode([user_input], convert_to_numpy=True)
+                q_emb /= np.linalg.norm(q_emb, axis=1, keepdims=True)
+                _, ids = index.search(q_emb, 3)
+                context = "\n\n".join(chunks[i] for i in ids[0])
+                # --- prompt framing ---
+                prompt = f"""
+Tu es expert ICPE/VRD.
+Pour chaque disposition légale applicable, réponds en deux parties :
+1) Disposition légale (article + citation)
+2) Proposition de solution concrète
+
+Contexte :
+{context}
+
+Question :
+{user_input}
+
+Réponse :
+"""
+                # --- génération ---
+                with st.spinner("⌛ Génération de la réponse…"):
+                    out = generator(prompt, max_new_tokens=256, num_beams=4, early_stopping=True)
+                    result_text = out[0]["generated_text"].strip()
+                st.success("✅ Réponse RAG locale :")
+                st.markdown(result_text)
+
         elif MODE == "API OpenAI (GPT)":
+            # conserve ta logique OpenAI existante
             try:
                 from dotenv import load_dotenv
                 from openai import OpenAI
-                
+
                 load_dotenv()
                 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-                
-                # On inclut le texte du PDF s'il a été chargé
+
                 context = f"Description de l'intervention : {user_input}"
                 if pdf_text:
                     context += f"\n\nDocument de référence :\n{pdf_text[:2000]}"
-                
+
                 response = client.chat.completions.create(
                     model="gpt-3.5-turbo",
                     messages=[
                         {
-                            "role": "system", 
+                            "role": "system",
                             "content": "Tu es un expert en réglementation ICPE et VRD. Analyse la situation avec rigueur."
                         },
-                        {
-                            "role": "user", 
-                            "content": context
-                        }
+                        {"role": "user", "content": context}
                     ],
-                    temperature=0.3  # Pour des réponses plus factuelles
+                    temperature=0.3
                 )
                 result_text = response.choices[0].message.content
                 st.success("✅ Réponse générée par GPT :")
                 st.markdown(result_text)
             except Exception as e:
-                st.error(f"❌ Erreur lors de l'appel API : {str(e)}")
+                st.error(f"❌ Erreur lors de l'appel API : {e}")
 
-# === GÉNÉRATION DE PDF ===
-# === GÉNÉRATION DE PDF ===
-from io import BytesIO
-from datetime import datetime
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.utils import ImageReader
-from reportlab.pdfgen import canvas
-
-def generate_pdf(user_input, result_text):
-    buffer = BytesIO()
-    c = canvas.Canvas(buffer, pagesize=A4)
-    width, height = A4
-    
-    # --- Chargement du logo Quartus ---
-    logo_path = "https://www.galivel.com/media/full/nouveau_logo_quartus-5.jpg" 
-    logo = ImageReader(logo_path)
-    logo_width = 100  # en points
-    logo_height = 40  # en points
-    
-    def _draw_header_footer(page_num):
-        # En-tête
-        c.setFont("Helvetica-Bold", 16)
-        c.drawString(50, height - 50, "Fiche d'analyse ICPE / VRD")
-        # Logo en haut à droite
-        c.drawImage(
-            logo,
-            width - 50 - logo_width, height - 50 - logo_height/2,
-            width=logo_width, height=logo_height,
-            mask='auto'
-        )
-        c.setFont("Helvetica", 10)
-        c.drawString(50, height - 70, f"Date : {datetime.now():%d/%m/%Y %H:%M}")
-        
-        # Pied de page
-        footer_text = f"Page {page_num}"
-        c.setFont("Helvetica-Oblique", 8)
-        c.drawCentredString(width / 2, 20, footer_text)
-    
-    # --- WRAP LINES ---
-    def wrap_lines(text, max_width, font_name="Helvetica", font_size=10):
-        """
-        Coupe la chaîne `text` en plusieurs lignes pour tenir dans `max_width` pts.
-        """
-        words = text.split()
-        lines = []
-        cur = ""
-        for w in words:
-            test = w if not cur else f"{cur} {w}"
-            if c.stringWidth(test, font_name, font_size) <= max_width:
-                cur = test
-            else:
-                lines.append(cur)
-                cur = w
-        if cur:
-            lines.append(cur)
-        return lines
-    
-    # Contenu de la première page
-    page_num = 1
-    _draw_header_footer(page_num)
-    
-    # Section description
-    y = height - 100
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(50, y, "✍️ Modification décrite :")
-    text_obj = c.beginText(50, y - 20)
-    text_obj.setFont("Helvetica", 10)
-    maxw = width - 100
-    
-    for raw_line in user_input.splitlines():
-        for wrapped in wrap_lines(raw_line, maxw):
-            text_obj.textLine(wrapped)
-    c.drawText(text_obj)
-    
-    # Section analyse
-    y_offset = text_obj.getY() - 30
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(50, y_offset, "✅ Analyse réglementaire :")
-    
-    result_text_obj = c.beginText(50, y_offset - 20)
-    result_text_obj.setFont("Helvetica", 10)
-    maxw2 = width - 100
-    for raw_line in result_text.splitlines():
-        for wrapped in wrap_lines(raw_line, maxw2):
-            result_text_obj.textLine(wrapped)
-    c.drawText(result_text_obj)
-    
-    # Fin de page 1
-    c.showPage()
-    c.save()
-    buffer.seek(0)
-    return buffer
-
-# Intégration avec Streamlit
+# === GÉNÉRATION DE LA FICHE PDF ===
 if user_input and result_text:
-    pdf_file = generate_pdf(user_input, result_text)
+    def generate_pdf(user_input, result_text):
+        buffer = BytesIO()
+        c = canvas.Canvas(buffer, pagesize=A4)
+        width, height = A4
+        logo = ImageReader("https://www.galivel.com/media/full/nouveau_logo_quartus-5.jpg")
+        logo_w, logo_h = 100, 40
+
+        def wrap_lines(text, max_width):
+            words = text.split()
+            lines = []; cur = ""
+            for w in words:
+                test = w if not cur else f"{cur} {w}"
+                if c.stringWidth(test) <= max_width:
+                    cur = test
+                else:
+                    lines.append(cur); cur = w
+            if cur: lines.append(cur)
+            return lines
+
+        # page 1 header/footer
+        def draw_header_footer(page_num):
+            c.setFont("Helvetica-Bold", 16)
+            c.drawString(50, height - 50, "Fiche d'analyse ICPE / VRD")
+            c.drawImage(logo, width - 150, height - 80, width=logo_w, height=logo_h, mask="auto")
+            c.setFont("Helvetica", 10)
+            c.drawString(50, height - 70, f"Date : {datetime.now():%d/%m/%Y %H:%M}")
+            c.setFont("Helvetica-Oblique", 8)
+            c.drawCentredString(width/2, 20, f"Page {page_num}")
+
+        # écrire le contenu
+        draw_header_footer(1)
+        y = height - 100
+        c.setFont("Helvetica-Bold", 12); c.drawString(50, y, "✍️ Modification décrite :")
+        text_obj = c.beginText(50, y - 20); text_obj.setFont("Helvetica", 10)
+        for line in wrap_lines(user_input, width-100):
+            text_obj.textLine(line)
+        c.drawText(text_obj)
+
+        y2 = text_obj.getY() - 30
+        c.setFont("Helvetica-Bold", 12); c.drawString(50, y2, "✅ Analyse réglementaire :")
+        res_obj = c.beginText(50, y2 - 20); res_obj.setFont("Helvetica", 10)
+        for line in wrap_lines(result_text, width-100):
+            res_obj.textLine(line)
+        c.drawText(res_obj)
+
+        c.showPage(); c.save()
+        buffer.seek(0)
+        return buffer
+
+    pdf_bytes = generate_pdf(user_input, result_text)
     st.download_button(
-        label="📥 Télécharger la fiche d'analyse PDF",
-        data=pdf_file,
+        label="📥 Télécharger la fiche PDF",
+        data=pdf_bytes,
         file_name="fiche_analyse_ICPE_VRD.pdf",
         mime="application/pdf",
         use_container_width=True
     )
 
 # === PIED DE PAGE ===
-import streamlit as st
-
-# --- PIED DE PAGE PROFESSIONNEL ---
-
 st.markdown('<div class="bottom">© 2025 Quartus · Tous droits réservés.</div>', unsafe_allow_html=True)
-
-
