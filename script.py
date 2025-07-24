@@ -140,43 +140,52 @@ if st.button("🔍 Analyser la situation"):
                 st.info("🧪 Mode démonstration **local RAG**")
                 # --- build RAG pipeline on PDF ---
                 chunks, embedder, index, generator = init_local_rag(pdf_text)
+
                 # --- retrieval ---
                 q_emb = embedder.encode([user_input], convert_to_numpy=True)
                 q_emb /= np.linalg.norm(q_emb, axis=1, keepdims=True)
                 _, ids = index.search(q_emb, 3)
                 context = "\n\n".join(chunks[i] for i in ids[0])
-                # --- prompt framing ---
-                system_instruction = (
-    "Tu es un EXPERT ICPE/VRD. RÉPONDS UNIQUEMENT EN FRANÇAIS, "
-    "sans anglicismes ni traduction, et NE RÉPÈTE PAS le contexte."
-)
 
-                prompt = f"""
-                {system_instruction}
+                # --- prompt framing sans inclusion directe de la consigne ---
+                local_prompt = f"""
+Contexte :
+{context}
 
-                Pour chaque disposition légale applicable, structure ta réponse en deux parties :
-                1) Disposition légale (article + citation précise)
-                2) Proposition de solution concrète adaptée
+Question :
+{user_input}
 
-                ---  
-                Contexte :  
-               {context}
+🔒 Ne répète pas le contexte ni ces consignes.
+Réponds uniquement en français, style EXPERT ICPE/VRD.
+Structure ta réponse en deux parties :
+1) Disposition légale (article + citation précise)
+2) Proposition de solution concrète adaptée
 
-               Question :  
-               {user_input}
-
-               ### Réponse (FR) :
-               """
-
+### Réponse :
+"""
                 # --- génération ---
                 with st.spinner("⌛ Génération de la réponse…"):
-                    out = generator(prompt, max_new_tokens=256, num_beams=4, early_stopping=True)
-                    result_text = out[0]["generated_text"].strip()
+                    out = generator(
+                        local_prompt,
+                        max_new_tokens=256,
+                        num_beams=4,
+                        early_stopping=True
+                    )
+                    raw = out[0]["generated_text"]
+
+                    # Filtrage des éventuelles lignes de consigne répétées
+                    import re
+                    filtered = "\n".join(
+                        line for line in raw.splitlines()
+                        if not re.match(r'^(EXPERT|🔒|Structure|1\)|2\))', line, flags=re.IGNORECASE)
+                    ).strip()
+
+                    result_text = filtered
+
                 st.success("✅ Réponse RAG locale :")
                 st.markdown(result_text)
 
-        elif MODE == "API OpenAI (GPT)":
-            # conserve ta logique OpenAI existante
+        else:  # === API OpenAI (GPT) ===
             try:
                 from dotenv import load_dotenv
                 from openai import OpenAI
@@ -184,24 +193,33 @@ if st.button("🔍 Analyser la situation"):
                 load_dotenv()
                 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-                context = f"Description de l'intervention : {user_input}"
+                # On conserve la logique existante pour l'API
+                messages = [
+                    {
+                        "role": "system",
+                        "content": (
+                            "Tu es un EXPERT ICPE/VRD. RÉPONDS UNIQUEMENT EN FRANÇAIS, "
+                            "sans anglicismes ni traduction, et NE RÉPÈTE PAS le contexte."
+                        )
+                    },
+                    {"role": "user", "content": user_input}
+                ]
                 if pdf_text:
-                    context += f"\n\nDocument de référence :\n{pdf_text[:2000]}"
+                    messages.insert(
+                        1,
+                        {"role": "user", "content": f"Document de référence :\n{pdf_text[:2000]}"}
+                    )
 
                 response = client.chat.completions.create(
-                    model="gpt-3.5-turbo",
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": "Tu es un expert en réglementation ICPE et VRD. Analyse la situation avec rigueur."
-                        },
-                        {"role": "user", "content": context}
-                    ],
-                    temperature=0.3
+                    model="gpt-4",
+                    messages=messages,
+                    temperature=0.0,
+                    max_tokens=512
                 )
-                result_text = response.choices[0].message.content
+                result_text = response.choices[0].message.content.strip()
                 st.success("✅ Réponse générée par GPT :")
                 st.markdown(result_text)
+
             except Exception as e:
                 st.error(f"❌ Erreur lors de l'appel API : {e}")
 
