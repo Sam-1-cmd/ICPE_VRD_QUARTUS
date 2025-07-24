@@ -128,6 +128,7 @@ def init_local_rag(text: str):
     return chunks, embedder, index, generator
 
 # === BOUTON ANALYSE ===
+# === BOUTON ANALYSE ===
 result_text = ""
 if st.button("🔍 Analyser la situation"):
     if not user_input.strip():
@@ -147,68 +148,64 @@ if st.button("🔍 Analyser la situation"):
                 _, ids = index.search(q_emb, 3)
                 context = "\n\n".join(chunks[i] for i in ids[0])
 
-                # --- prompt framing sans inclusion directe de la consigne ---
-                local_prompt = f"""
-Contexte :
-{context}
+                # --- few-shot example pour guider la réponse ---
+                example = (
+                    "Exemple :\n"
+                    "Contexte : Déplacement d’un bassin de 20 000 m³ hors zone inondable.\n"
+                    "Question : Quel texte s’applique et quelle solution ?\n"
+                    "1) Disposition légale (art. R123-45 CE : « … »)\n"
+                    "2) Proposition de solution : maintenir le volume, prévoir un talus étanche…\n\n"
+                )
 
-Question :
-{user_input}
+                # --- prompt compact sans indentation inutile ---
+                local_prompt = (
+                    example +
+                    "Contexte : " + context + "\n"
+                    "Question : " + user_input + "\n"
+                    "🔒 Ne répète pas le contexte. Réponds UNIQUEMENT EN FRANÇAIS, style EXPERT ICPE/VRD.\n"
+                    "1) Disposition légale (article + citation précise)\n"
+                    "2) Proposition de solution concrète adaptée\n"
+                    "### Réponse :"
+                )
 
-🔒 Ne répète pas le contexte ni ces consignes.
-Réponds uniquement en français, style EXPERT ICPE/VRD.
-Structure ta réponse en deux parties :
-1) Disposition légale (article + citation précise)
-2) Proposition de solution concrète adaptée
-
-### Réponse :
-"""
-                # --- génération ---
+                # --- génération avec stop_token pour éviter tout surplus ---
                 with st.spinner("⌛ Génération de la réponse…"):
                     out = generator(
                         local_prompt,
                         max_new_tokens=256,
                         num_beams=4,
-                        early_stopping=True
+                        early_stopping=True,
+                        stop_token="###"
                     )
                     raw = out[0]["generated_text"]
 
-                    # Filtrage des éventuelles lignes de consigne répétées
-                    import re
-                    filtered = "\n".join(
-                        line for line in raw.splitlines()
-                        if not re.match(r'^(EXPERT|🔒|Structure|1\)|2\))', line, flags=re.IGNORECASE)
-                    ).strip()
+                # --- post-traitement léger pour éliminer les résidus de consigne ---
+                import re
+                filtered = "\n".join(
+                    line for line in raw.splitlines()
+                    if not re.match(r'^(Exemple|Contexte|Question|🔒|1\)|2\))', line, flags=re.IGNORECASE)
+                ).strip()
 
-                    result_text = filtered
-
+                result_text = filtered
                 st.success("✅ Réponse RAG locale :")
                 st.markdown(result_text)
 
-        else:  # === API OpenAI (GPT) ===
+        else:  # API OpenAI (GPT)
             try:
                 from dotenv import load_dotenv
                 from openai import OpenAI
-
                 load_dotenv()
                 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-                # On conserve la logique existante pour l'API
-                messages = [
-                    {
-                        "role": "system",
-                        "content": (
-                            "Tu es un EXPERT ICPE/VRD. RÉPONDS UNIQUEMENT EN FRANÇAIS, "
-                            "sans anglicismes ni traduction, et NE RÉPÈTE PAS le contexte."
-                        )
-                    },
-                    {"role": "user", "content": user_input}
-                ]
+                # construction du prompt pour l'API
+                system_msg = (
+                    "Tu es un EXPERT ICPE/VRD. RÉPONDS UNIQUEMENT EN FRANÇAIS, "
+                    "sans anglicismes ni traduction, et NE RÉPÈTE PAS le contexte."
+                )
+                messages = [{"role": "system", "content": system_msg},
+                            {"role": "user", "content": user_input}]
                 if pdf_text:
-                    messages.insert(
-                        1,
-                        {"role": "user", "content": f"Document de référence :\n{pdf_text[:2000]}"}
-                    )
+                    messages.insert(1, {"role": "user", "content": f"Document de référence :\n{pdf_text[:2000]}"})
 
                 response = client.chat.completions.create(
                     model="gpt-4",
@@ -222,6 +219,7 @@ Structure ta réponse en deux parties :
 
             except Exception as e:
                 st.error(f"❌ Erreur lors de l'appel API : {e}")
+
 
 # === GÉNÉRATION DE LA FICHE PDF ===
 if user_input and result_text:
