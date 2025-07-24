@@ -1,17 +1,16 @@
-streamlit
 openai>=1.1.0
-python-dotenv
-
 PyPDF2
 pypdf
-pymupdf
 pdfplumber 
-
-reportlab
 
 langchain
 langchain-community
 
+torch
+transformers
 sentence-transformers
-
 faiss-cpu
+pymupdf
+streamlit
+reportlab
+python-dotenv     
