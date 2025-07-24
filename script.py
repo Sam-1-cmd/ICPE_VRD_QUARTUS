@@ -71,11 +71,13 @@ st.info("👋 Bienvenue ! Décris ici ta modification VRD pour évaluer son impa
 # === SAISIE DE L'UTILISATEUR ===
 st.markdown("### ✍️ Décris la modification VRD à analyser")
 with st.expander("🔍 Besoin d'un exemple ?"):
-    st.markdown("""
-    **Exemple :**  
-    Déplacement d'un bassin de rétention vers l'ouest, en dehors de la zone inondable,  
-    pour libérer l'accès pompier. Le nouveau bassin aura une capacité de 60 000 m³.
-    """)
+    st.markdown(
+        """
+        **Exemple :**  
+        Déplacement d'un bassin de rétention vers l'ouest, en dehors de la zone inondable,  
+        pour libérer l'accès pompier. Le nouveau bassin aura une capacité de 60 000 m³.
+        """
+    )
 
 user_input = st.text_area(
     "Saisie de la modification VRD :",
@@ -133,24 +135,27 @@ if st.button("🔍 Analyser la situation"):
     if not user_input.strip():
         st.warning("⚠️ Décris d'abord ta modification VRD.")
     else:
+        # Construction du prompt expert
+        intro_expert = (
+            "Tu es un expert réglementaire ICPE et VRD, réponds systématiquement en FRANÇAIS. "
+            "N'apporte aucune traduction en anglais, et ne reformule pas la question. "
+            "Pour chaque disposition légale applicable, réponds en deux parties :\n"
+            "1) Disposition légale (article + citation précise)\n"
+            "2) Proposition de solution concrète adaptée au contexte donné."
+        )
+
         if MODE == "Démo hors ligne":
             if not pdf_text:
                 st.error("⚠️ Téléverse un document PDF pour le mode hors ligne.")
             else:
                 st.info("🧪 Mode démonstration **local RAG**")
-                # --- build RAG pipeline on PDF ---
                 chunks, embedder, index, generator = init_local_rag(pdf_text)
-                # --- retrieval ---
                 q_emb = embedder.encode([user_input], convert_to_numpy=True)
                 q_emb /= np.linalg.norm(q_emb, axis=1, keepdims=True)
                 _, ids = index.search(q_emb, 3)
                 context = "\n\n".join(chunks[i] for i in ids[0])
-                # --- prompt framing ---
                 prompt = f"""
-Tu es expert ICPE/VRD.
-Pour chaque disposition légale applicable, réponds en deux parties :
-1) Disposition légale (article + citation)
-2) Proposition de solution concrète
+{intro_expert}
 
 Contexte :
 {context}
@@ -160,15 +165,13 @@ Question :
 
 Réponse :
 """
-                # --- génération ---
                 with st.spinner("⌛ Génération de la réponse…"):
                     out = generator(prompt, max_new_tokens=256, num_beams=4, early_stopping=True)
                     result_text = out[0]["generated_text"].strip()
                 st.success("✅ Réponse RAG locale :")
                 st.markdown(result_text)
 
-        elif MODE == "API OpenAI (GPT)":
-            # conserve ta logique OpenAI existante
+        else:  # API OpenAI
             try:
                 from dotenv import load_dotenv
                 from openai import OpenAI
@@ -176,22 +179,25 @@ Réponse :
                 load_dotenv()
                 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-                context = f"Description de l'intervention : {user_input}"
+                system_msg = (
+                    "Tu es un expert réglementaire ICPE et VRD, réponds systématiquement en FRANÇAIS. "
+                    "N'apporte aucune traduction en anglais, et ne reformule pas la question. "
+                    "Analyse la situation avec rigueur et détaille chaque référence légale."
+                )
+                messages = [
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": user_input}
+                ]
                 if pdf_text:
-                    context += f"\n\nDocument de référence :\n{pdf_text[:2000]}"
+                    messages.insert(1, {"role": "user", "content": f"Document de référence :\n{pdf_text[:2000]}"})
 
                 response = client.chat.completions.create(
-                    model="gpt-3.5-turbo",
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": "Tu es un expert en réglementation ICPE et VRD. Analyse la situation avec rigueur."
-                        },
-                        {"role": "user", "content": context}
-                    ],
-                    temperature=0.3
+                    model="gpt-4",
+                    messages=messages,
+                    temperature=0.0,
+                    max_tokens=512
                 )
-                result_text = response.choices[0].message.content
+                result_text = response.choices[0].message.content.strip()
                 st.success("✅ Réponse générée par GPT :")
                 st.markdown(result_text)
             except Exception as e:
@@ -218,7 +224,6 @@ if user_input and result_text:
             if cur: lines.append(cur)
             return lines
 
-        # page 1 header/footer
         def draw_header_footer(page_num):
             c.setFont("Helvetica-Bold", 16)
             c.drawString(50, height - 50, "Fiche d'analyse ICPE / VRD")
@@ -228,7 +233,7 @@ if user_input and result_text:
             c.setFont("Helvetica-Oblique", 8)
             c.drawCentredString(width/2, 20, f"Page {page_num}")
 
-        # écrire le contenu
+        # page 1
         draw_header_footer(1)
         y = height - 100
         c.setFont("Helvetica-Bold", 12); c.drawString(50, y, "✍️ Modification décrite :")
