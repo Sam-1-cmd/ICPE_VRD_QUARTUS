@@ -126,7 +126,6 @@ def init_local_rag(text: str):
     )
 
     return chunks, embedder, index, generator
-
 # === BOUTON ANALYSE ===
 result_text = ""
 if st.button("🔍 Analyser la situation"):
@@ -140,31 +139,24 @@ if st.button("🔍 Analyser la situation"):
                 st.info("🧪 Mode démonstration **local RAG**")
                 chunks, embedder, index, generator = init_local_rag(pdf_text)
 
-                # retrieval
+                # --- retrieval ---
                 q_emb = embedder.encode([user_input], convert_to_numpy=True)
                 q_emb /= np.linalg.norm(q_emb, axis=1, keepdims=True)
                 _, ids = index.search(q_emb, 3)
                 context = "\n\n".join(chunks[i] for i in ids[0])
 
-                # few-shot + prompt compact
-                example = (
-                    "Exemple :\n"
-                    "Contexte : Déplacement d’un bassin de 20 000 m³ hors zone inondable.\n"
-                    "Question : Quel texte s’applique et quelle solution ?\n"
-                    "1) Disposition légale (art. R123-45 CE : « … »)\n"
-                    "2) Proposition de solution : maintenir le volume, prévoir un talus étanche…\n\n"
-                )
+                # --- prompt compact et sans exemple ---
                 local_prompt = (
-                    example +
                     "Contexte : " + context + "\n"
                     "Question : " + user_input + "\n"
-                    "🔒 Ne répète pas le contexte. Réponds UNIQUEMENT EN FRANÇAIS, style EXPERT ICPE/VRD.\n"
+                    "🔒 NE PAS INCLURE L’EXEMPLE, NE PAS RÉPÉTER LE CONTEXTE.\n"
+                    "RÉPONDS UNIQUEMENT EN FRANÇAIS, style EXPERT ICPE/VRD.\n"
                     "1) Disposition légale (article + citation précise)\n"
                     "2) Proposition de solution concrète adaptée\n"
                     "### Réponse :"
                 )
 
-                # génération sans stop_token
+                # --- génération ---
                 with st.spinner("⌛ Génération de la réponse…"):
                     out = generator(
                         local_prompt,
@@ -174,19 +166,19 @@ if st.button("🔍 Analyser la situation"):
                     )
                     raw = out[0]["generated_text"]
 
-                # post-traitement pour ne garder que le cœur de la réponse
+                # --- post-traitement pour enlever toute trace de prompt ---
                 import re
+                lines = raw.splitlines()
                 filtered = "\n".join(
-                    line for line in raw.splitlines()
-                    # on coupe tout ce qui ressemble encore à un exemple ou prompt
-                    if not re.match(r'^(Exemple|Contexte|Question|🔒|1\)|2\))', line, flags=re.IGNORECASE)
+                    l for l in lines
+                    if not re.match(r'^(Contexte|Question|🔒|1\)|2\)|###)', l)
                 ).strip()
 
                 result_text = filtered
                 st.success("✅ Réponse RAG locale :")
                 st.markdown(result_text)
 
-        else:  # API OpenAI (GPT)
+        else:  # === API OpenAI (GPT) ===
             try:
                 from dotenv import load_dotenv
                 from openai import OpenAI
@@ -195,14 +187,18 @@ if st.button("🔍 Analyser la situation"):
 
                 system_msg = (
                     "Tu es un EXPERT ICPE/VRD. RÉPONDS UNIQUEMENT EN FRANÇAIS, "
-                    "sans anglicismes ni traduction, et NE RÉPÈTE PAS le contexte."
+                    "sans anglicismes ni traduction, et NE RÉPÈTE PAS le contexte. "
+                    "NE FOURNIS PAS L’EXEMPLE DANS LA RÉPONSE."
                 )
                 messages = [
                     {"role": "system", "content": system_msg},
                     {"role": "user",   "content": user_input}
                 ]
                 if pdf_text:
-                    messages.insert(1, {"role": "user", "content": f"Document de référence :\n{pdf_text[:2000]}"})
+                    messages.insert(1, {
+                        "role": "user",
+                        "content": f"Document de référence :\n{pdf_text[:2000]}"
+                    })
 
                 response = client.chat.completions.create(
                     model="gpt-4",
@@ -216,7 +212,6 @@ if st.button("🔍 Analyser la situation"):
 
             except Exception as e:
                 st.error(f"❌ Erreur lors de l'appel API : {e}")
-
 
 # === GÉNÉRATION DE LA FICHE PDF ===
 if user_input and result_text:
