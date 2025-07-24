@@ -16,16 +16,7 @@ from sentence_transformers import SentenceTransformer
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
 
 # === CONFIG PAGE ===
-st.set_page_config(
-    page_title="ICPE / VRD Analyzer",
-    layout="centered",
-    page_icon="🛠️",
-    initial_sidebar_state="expanded",  # Sidebar ouverte par défaut
-    menu_items={
-        'Get Help': 'https://www.ecologie.gouv.fr/icpe',  # Lien vers l'aide
-        'About': "Analyseur d'ICPE/VRD avec IA | © 2024"
-    }
-)
+st.set_page_config(page_title="ICPE / VRD Analyzer", layout="centered", page_icon="🛠️")
 
 # === STYLE ===
 st.markdown(
@@ -36,21 +27,17 @@ st.markdown(
         background-size: cover;
         background-attachment: fixed;
         background-position: center;
-        opacity: 0.8;  /* Réduit l'opacité du fond */
     }
     .main .block-container {
-        background-color: rgba(255, 255, 255, 0.95);  /* Blanc plus opaque */
+        background-color: rgba(255,255,255,0.9);
         border-radius: 15px;
         padding: 2rem;
-        box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.1);  /* Ombre légère */
-    }
-    h1, h2, h3 {
-        color: #2c3e50 !important;  /* Couleur de titre plus professionnelle */
     }
     </style>
     """,
     unsafe_allow_html=True
 )
+
 # === BARRE LATÉRALE ===
 st.sidebar.title("🧭 Navigation")
 MODE = st.sidebar.radio("🧠 Mode d'analyse :", ["Démo hors ligne", "API OpenAI (GPT)"])
@@ -271,14 +258,4 @@ if user_input and result_text:
     )
 
 # === PIED DE PAGE ===
-st.markdown(
-    """
-    <div style="text-align: center; margin-top: 2rem; font-size: 0.8em;">
-        © 2024 ICPE/VRD Analyzer | Conforme à la 
-        <a href="https://www.legifrance.gouv.fr/affichCode.do?idSectionTA=LEGISCTA000006136105&cidTexte=LEGITEXT000006074220">
-            loi n°2023-XX
-        </a>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+st.markdown('<div class="bottom">© 2025 Quartus · Tous droits réservés.</div>', unsafe_allow_html=True)
