@@ -1,13 +1,6 @@
-# Python
-__pycache__/
-*.py[cod]
-*.env
-.env
-# Streamlit secrets
-.streamlit/secrets.toml
-# Data / PDFs (si pas en LFS)
-docs_pdf/*
-!docs_pdf/README.md
-# Cache / logs
-.cache/
+# Index FAISS généré
+/faiss_index/
+# Fichiers temporaires
+*.cache
 *.log
+
