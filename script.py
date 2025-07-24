@@ -152,21 +152,21 @@ if st.button("🔍 Analyser la situation"):
 )
 
                 prompt = f"""
-{system_instruction}
+                {system_instruction}
 
-Pour chaque disposition légale applicable, structure ta réponse en deux parties :
-1) Disposition légale (article + citation précise)
-2) Proposition de solution concrète adaptée
+                Pour chaque disposition légale applicable, structure ta réponse en deux parties :
+                1) Disposition légale (article + citation précise)
+                2) Proposition de solution concrète adaptée
 
----  
-Contexte :  
-{context}
+                ---  
+                Contexte :  
+               {context}
 
-Question :  
-{user_input}
+               Question :  
+               {user_input}
 
-### Réponse (FR) :
-"""
+               ### Réponse (FR) :
+               """
 
                 # --- génération ---
                 with st.spinner("⌛ Génération de la réponse…"):
