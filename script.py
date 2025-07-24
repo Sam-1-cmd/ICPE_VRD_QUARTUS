@@ -126,6 +126,7 @@ def init_local_rag(text: str):
     )
 
     return chunks, embedder, index, generator
+
 # === BOUTON ANALYSE ===
 result_text = ""
 if st.button("🔍 Analyser la situation"):
@@ -139,79 +140,136 @@ if st.button("🔍 Analyser la situation"):
                 st.info("🧪 Mode démonstration **local RAG**")
                 chunks, embedder, index, generator = init_local_rag(pdf_text)
 
-                # --- retrieval ---
+                # --- RETRIEVAL OPTIMISÉ ---
                 q_emb = embedder.encode([user_input], convert_to_numpy=True)
                 q_emb /= np.linalg.norm(q_emb, axis=1, keepdims=True)
-                _, ids = index.search(q_emb, 3)
-                context = "\n\n".join(chunks[i] for i in ids[0])
+                scores, ids = index.search(q_emb, 5)  # 5 chunks pour plus de contexte
+                
+                # Filtrage par score de similarité
+                context_chunks = [chunks[i] for i, score in zip(ids[0], scores[0]) if score > 0.2]
+                context = "\n".join(context_chunks) if context_chunks else chunks[ids[0][0]]
 
-                # --- prompt compact et sans exemple ---
-                local_prompt = (
-                    "Contexte : " + context + "\n"
-                    "Question : " + user_input + "\n"
-                    "🔒 NE PAS INCLURE L’EXEMPLE, NE PAS RÉPÉTER LE CONTEXTE.\n"
-                    "RÉPONDS UNIQUEMENT EN FRANÇAIS, style EXPERT ICPE/VRD.\n"
-                    "1) Disposition légale (article + citation précise)\n"
-                    "2) Proposition de solution concrète adaptée\n"
-                    "### Réponse :"
-                )
+                # --- PROMPT ADAPTÉ FLAN-T5 ---
+                local_prompt = f"""
+                Question ICPE/VRD: {user_input}
+                Contexte réglementaire: {context}
+                Exigences de réponse:
+                - Sois concis et technique
+                - Cite les articles de loi applicables
+                - Propose une solution pratique
+                Réponse:
+                """
 
-                # --- génération ---
-                with st.spinner("⌛ Génération de la réponse…"):
-                    out = generator(
-                        local_prompt,
-                        max_new_tokens=256,
-                        num_beams=4,
-                        early_stopping=True,
-                    )
-                    raw = out[0]["generated_text"]
+                # --- GÉNÉRATION AVEC PARAMÈTRES OPTIMISÉS ---
+                with st.spinner("⌛ Analyse en cours (modèle local)..."):
+                    try:
+                        out = generator(
+                            local_prompt,
+                            max_new_tokens=512,
+                            num_beams=3,
+                            do_sample=True,
+                            temperature=0.7,
+                            top_k=40,
+                            repetition_penalty=1.2,  # Évite les répétitions
+                        )
+                        raw_response = out[0]["generated_text"]
+                        
+                        # EXTRACTION INTELLIGENTE DE LA RÉPONSE
+                        if "Réponse:" in raw_response:
+                            answer = raw_response.split("Réponse:")[-1].strip()
+                        else:
+                            answer = raw_response.replace(local_prompt, "").strip()
+                        
+                        # NETTOYAGE FINAL
+                        answer = (answer
+                                 .replace("<pad>", "")
+                                 .replace("</s>", "")
+                                 .split("###")[0]
+                                 .strip())
 
-                # --- post-traitement pour enlever toute trace de prompt ---
-                import re
-                lines = raw.splitlines()
-                filtered = "\n".join(
-                    l for l in lines
-                    if not re.match(r'^(Contexte|Question|🔒|1\)|2\)|###)', l)
-                ).strip()
+                    except Exception as e:
+                        st.error(f"Erreur de génération: {str(e)}")
+                        answer = ""
 
-                result_text = filtered
-                st.success("✅ Réponse RAG locale :")
-                st.markdown(result_text)
+                # --- AFFICHAGE ---
+                if answer and len(answer) > 30:  # Vérifie que la réponse est valide
+                    st.success("✅ Analyse réglementaire :")
+                    st.markdown(f"""
+                    <div style="
+                        background-color: #f8f9fa;
+                        border-left: 4px solid #28a745;
+                        padding: 1rem;
+                        margin: 1rem 0;
+                        border-radius: 0.25rem;
+                    ">
+                        {answer}
+                    </div>
+                    """, unsafe_allow_html=True)
+                    result_text = answer
+                else:
+                    st.warning("Le modèle n'a pas pu générer de réponse pertinente. Essayez avec plus de contexte.")
 
-        else:  # === API OpenAI (GPT) ===
+        else:  # === MODE OPENAI (GPT) ===
             try:
                 from dotenv import load_dotenv
                 from openai import OpenAI
                 load_dotenv()
                 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-                system_msg = (
-                    "Tu es un EXPERT ICPE/VRD. RÉPONDS UNIQUEMENT EN FRANÇAIS, "
-                    "sans anglicismes ni traduction, et NE RÉPÈTE PAS le contexte. "
-                    "NE FOURNIS PAS L’EXEMPLE DANS LA RÉPONSE."
-                )
-                messages = [
-                    {"role": "system", "content": system_msg},
-                    {"role": "user",   "content": user_input}
-                ]
+                # --- PROMPT STRUCTURÉ POUR GPT ---
+                system_msg = """Tu es un expert ICPE/VRD français. Ta réponse doit:
+                - Être concise et technique
+                - Citer les articles de loi précis
+                - Proposer des solutions pratiques
+                - Éviter tout anglicisme
+                Format de réponse:
+                [Article] Texte de loi pertinent
+                [Recommandation] Solution concrète
+                """
+                
+                messages = [{"role": "system", "content": system_msg}]
+                
                 if pdf_text:
-                    messages.insert(1, {
+                    messages.append({
                         "role": "user",
-                        "content": f"Document de référence :\n{pdf_text[:2000]}"
+                        "content": f"Document de référence:\n{pdf_text[:3000]}\n\nQuestion: {user_input}"
                     })
+                else:
+                    messages.append({"role": "user", "content": user_input})
 
-                response = client.chat.completions.create(
-                    model="gpt-4",
-                    messages=messages,
-                    temperature=0.0,
-                    max_tokens=512
-                )
-                result_text = response.choices[0].message.content.strip()
-                st.success("✅ Réponse générée par GPT :")
-                st.markdown(result_text)
+                # --- APPEL API STREAMING ---
+                with st.spinner("🔍 Consultation des textes réglementaires..."):
+                    response = client.chat.completions.create(
+                        model="gpt-4-turbo-preview",  # Modèle plus récent
+                        messages=messages,
+                        temperature=0.3,  # Un peu de flexibilité
+                        max_tokens=1024,
+                        stream=True  # Streaming pour l'expérience utilisateur
+                    )
+                    
+                    # Affichage progressif
+                    response_container = st.empty()
+                    full_response = []
+                    
+                    for chunk in response:
+                        chunk_content = chunk.choices[0].delta.content
+                        if chunk_content:
+                            full_response.append(chunk_content)
+                            response_container.markdown("".join(full_response))
+
+                result_text = "".join(full_response).strip()
+                
+                if result_text:
+                    st.success("✅ Analyse complétée")
+                    # Sauvegarde dans l'historique
+                    if "historique" not in st.session_state:
+                        st.session_state.historique = []
+                    st.session_state.historique.append((user_input, result_text))
 
             except Exception as e:
-                st.error(f"❌ Erreur lors de l'appel API : {e}")
+                st.error(f"❌ Erreur API: {str(e)}")
+                if "rate limit" in str(e).lower():
+                    st.info("💡 Astuce: Essayez plus tard ou utilisez le mode hors ligne")
 
 # === GÉNÉRATION DE LA FICHE PDF ===
 if user_input and result_text:
