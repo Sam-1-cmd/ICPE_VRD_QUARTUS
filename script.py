@@ -128,7 +128,6 @@ def init_local_rag(text: str):
     return chunks, embedder, index, generator
 
 # === BOUTON ANALYSE ===
-# === BOUTON ANALYSE ===
 result_text = ""
 if st.button("🔍 Analyser la situation"):
     if not user_input.strip():
@@ -139,25 +138,22 @@ if st.button("🔍 Analyser la situation"):
                 st.error("⚠️ Téléverse un document PDF pour le mode hors ligne.")
             else:
                 st.info("🧪 Mode démonstration **local RAG**")
-                # --- build RAG pipeline on PDF ---
                 chunks, embedder, index, generator = init_local_rag(pdf_text)
 
-                # --- retrieval ---
+                # retrieval
                 q_emb = embedder.encode([user_input], convert_to_numpy=True)
                 q_emb /= np.linalg.norm(q_emb, axis=1, keepdims=True)
                 _, ids = index.search(q_emb, 3)
                 context = "\n\n".join(chunks[i] for i in ids[0])
 
-                # --- few-shot example pour guider la réponse ---
+                # few-shot + prompt compact
                 example = (
                     "Exemple :\n"
                     "Contexte : Déplacement d’un bassin de 20 000 m³ hors zone inondable.\n"
                     "Question : Quel texte s’applique et quelle solution ?\n"
-                    "1) Disposition légale (art. R123-45 CE : « … »)\n"
+                    "1) Disposition légale (art. R123-45 CE : « … »)\n"
                     "2) Proposition de solution : maintenir le volume, prévoir un talus étanche…\n\n"
                 )
-
-                # --- prompt compact sans indentation inutile ---
                 local_prompt = (
                     example +
                     "Contexte : " + context + "\n"
@@ -168,21 +164,21 @@ if st.button("🔍 Analyser la situation"):
                     "### Réponse :"
                 )
 
-                # --- génération avec stop_token pour éviter tout surplus ---
+                # génération sans stop_token
                 with st.spinner("⌛ Génération de la réponse…"):
                     out = generator(
                         local_prompt,
                         max_new_tokens=256,
                         num_beams=4,
                         early_stopping=True,
-                        stop_token="###"
                     )
                     raw = out[0]["generated_text"]
 
-                # --- post-traitement léger pour éliminer les résidus de consigne ---
+                # post-traitement pour ne garder que le cœur de la réponse
                 import re
                 filtered = "\n".join(
                     line for line in raw.splitlines()
+                    # on coupe tout ce qui ressemble encore à un exemple ou prompt
                     if not re.match(r'^(Exemple|Contexte|Question|🔒|1\)|2\))', line, flags=re.IGNORECASE)
                 ).strip()
 
@@ -197,13 +193,14 @@ if st.button("🔍 Analyser la situation"):
                 load_dotenv()
                 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-                # construction du prompt pour l'API
                 system_msg = (
                     "Tu es un EXPERT ICPE/VRD. RÉPONDS UNIQUEMENT EN FRANÇAIS, "
                     "sans anglicismes ni traduction, et NE RÉPÈTE PAS le contexte."
                 )
-                messages = [{"role": "system", "content": system_msg},
-                            {"role": "user", "content": user_input}]
+                messages = [
+                    {"role": "system", "content": system_msg},
+                    {"role": "user",   "content": user_input}
+                ]
                 if pdf_text:
                     messages.insert(1, {"role": "user", "content": f"Document de référence :\n{pdf_text[:2000]}"})
 
