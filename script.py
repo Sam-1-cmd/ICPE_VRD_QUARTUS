@@ -146,20 +146,28 @@ if st.button("🔍 Analyser la situation"):
                 _, ids = index.search(q_emb, 3)
                 context = "\n\n".join(chunks[i] for i in ids[0])
                 # --- prompt framing ---
-                prompt = f"""
-Tu es expert ICPE/VRD.
-Pour chaque disposition légale applicable, réponds en deux parties :
-1) Disposition légale (article + citation)
-2) Proposition de solution concrète
+                system_instruction = (
+    "Tu es un EXPERT ICPE/VRD. RÉPONDS UNIQUEMENT EN FRANÇAIS, "
+    "sans anglicismes ni traduction, et NE RÉPÈTE PAS le contexte."
+)
 
-Contexte :
+                prompt = f"""
+{system_instruction}
+
+Pour chaque disposition légale applicable, structure ta réponse en deux parties :
+1) Disposition légale (article + citation précise)
+2) Proposition de solution concrète adaptée
+
+---  
+Contexte :  
 {context}
 
-Question :
+Question :  
 {user_input}
 
-Réponse :
+### Réponse (FR) :
 """
+
                 # --- génération ---
                 with st.spinner("⌛ Génération de la réponse…"):
                     out = generator(prompt, max_new_tokens=256, num_beams=4, early_stopping=True)
