@@ -84,48 +84,38 @@ user_input = st.text_area(
 )
 
 # === FONCTIONS UTILES RAG LOCAL ===
-def chunk_text(text: str, size: int = 1000, overlap: int = 200):
-    """Découpe en chunks de `size` caractères avec chevauchement."""
-    chunks = []
-    start = 0
-    while start < len(text):
-        end = min(start + size, len(text))
-        chunks.append(text[start:end])
-        start += size - overlap
-    return chunks
+from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM
+import numpy as np
+import faiss
+from sentence_transformers import SentenceTransformer
 
-@st.cache_resource(show_spinner=False)
-def init_local_rag(text: str):
-    """
-    Construit :
-      - la liste de chunks,
-      - l'embeddeur et embeddings normalisés,
-      - l'index FAISS,
-      - le pipeline de génération Flan-T5-small (CPU).
-    """
-    # 1) chunking du PDF
-    chunks = chunk_text(text)
-
-    # 2) embeddings
-    embedder = SentenceTransformer("all-MiniLM-L6-v2")
-    embs = embedder.encode(chunks, convert_to_numpy=True, show_progress_bar=False)
-    embs /= np.linalg.norm(embs, axis=1, keepdims=True)
-
-    # 3) index FAISS (cosine via Inner-Product)
-    index = faiss.IndexFlatIP(embs.shape[1])
-    index.add(embs)
-
-    # 4) pipeline Flan-T5-small CPU
-    tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-small")
-    model     = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-small").to("cpu")
-    generator = pipeline(
-        "text2text-generation",
-        model=model,
-        tokenizer=tokenizer,
-        device=-1
-    )
-
-    return chunks, embedder, index, generator
+def generate_answer(question, chunks, index, embedder, generator):
+    # 1. Embedding de la question
+    q_emb = embedder.encode([question], convert_to_numpy=True)
+    q_emb /= np.linalg.norm(q_emb, axis=1, keepdims=True)
+    
+    # 2. Retrieval avec FAISS (top 3 chunks)
+    scores, indices = index.search(q_emb, 3)
+    context = "\n".join([chunks[i] for i in indices[0]])
+    
+    # 3. Construction du prompt adapté à Flan-T5
+    prompt = f"""
+Question: {question}
+Contexte: {context}
+Réponds précisément en t'appuyant sur le contexte réglementaire ICPE.
+Réponse:"""
+    
+    # 4. Génération avec paramètres optimisés
+    answer = generator(
+        prompt,
+        max_length=256,
+        num_beams=3,
+        repetition_penalty=1.5,
+        early_stopping=True,
+        temperature=0.7
+    )[0]['generated_text']
+    
+    return answer
 
 # === BOUTON ANALYSE ===
 result_text = ""
