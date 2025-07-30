@@ -79,6 +79,29 @@ def init_local_rag(
     index.add(embeddings)
     # générateur
     tokenizer = AutoTokenizer.from_pretrained(gen_model)
+    try:
+        # essai sans device_map pour compatibilité
+        model = AutoModelForSeq2SeqLM.from_pretrained(gen_model)
+    except ValueError as e:
+        raise ValueError(f"Erreur chargement modèle '{gen_model}': {e}")
+    generator = pipeline("text2text-generation", model=model, tokenizer=tokenizer)
+    return chunks, embedder, index, generator(
+    text: str,
+    chunk_size: int = 1024,
+    overlap: int = 80,
+    embed_model: str = "sentence-transformers/all-MiniLM-L6-v2",
+    gen_model: str = "google/flan-t5-large"
+):
+    # découpage
+    splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=overlap)
+    chunks = splitter.split_text(text)
+    # embeddings
+    embedder = SentenceTransformer(embed_model)
+    embeddings = embedder.encode(chunks, convert_to_numpy=True, normalize_embeddings=True)
+    index = faiss.IndexFlatIP(embeddings.shape[1])
+    index.add(embeddings)
+    # générateur
+    tokenizer = AutoTokenizer.from_pretrained(gen_model)
     model = AutoModelForSeq2SeqLM.from_pretrained(gen_model, device_map="auto")
     generator = pipeline("text2text-generation", model=model, tokenizer=tokenizer)
     return chunks, embedder, index, generator
