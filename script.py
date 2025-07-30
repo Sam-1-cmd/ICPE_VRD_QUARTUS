@@ -62,11 +62,13 @@ if uploaded_file is not None:
 
 # === INIT LOCAL RAG ===
 @st.cache_resource
- def init_local_rag(text: str,
-                     chunk_size: int = 1024,
-                     overlap: int = 80,
-                     embed_model: str = "sentence-transformers/all-MiniLM-L6-v2",
-                     gen_model: str = "google/flan-t5-large"):
+def init_local_rag(
+    text: str,
+    chunk_size: int = 1024,
+    overlap: int = 80,
+    embed_model: str = "sentence-transformers/all-MiniLM-L6-v2",
+    gen_model: str = "google/flan-t5-large"
+):
     # découpage
     splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=overlap)
     chunks = splitter.split_text(text)
